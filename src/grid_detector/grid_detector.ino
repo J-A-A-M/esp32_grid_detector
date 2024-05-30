@@ -1,3 +1,20 @@
+#define ETHERNET 0
+#define PING 0
+
+#if ETHERNET
+#include <Ethernet.h>
+#include <EthernetClient.h>
+byte mac[] = { 0xDE, 0xAD, 0xBE, 0xEF, 0xFE, 0xED }; 
+EthernetClient client;
+#endif
+
+#if PING
+#include <ICMPPing.h>
+IPAddress remote_ip(8, 8, 8, 8);
+SOCKET pingSocket = 0;
+ICMPPing ping(pingSocket, (uint16_t)random(0, 255));
+#endif
+
 const int buttonPin = 2;
 
 int lastState = LOW;
@@ -10,12 +27,71 @@ unsigned long pressedTime = 0;
 
 #define REACTION_TIME 2000
 
+
+#if PING 
+void googlePing(){
+  ICMPEchoReply echoReply = ping(remote_ip, 4);
+
+  switch (echoReply.status) {
+    case SUCCESS:
+      Serial.print("Ping to ");
+      Serial.print(remote_ip);
+      Serial.print(" successful, time=");
+      Serial.print(echoReply.time);
+      Serial.println("ms");
+      break;
+    case TIMED_OUT:
+      Serial.println("Ping timed out");
+      break;
+    case DESTINATION_UNREACHABLE:
+      Serial.println("Destination unreachable");
+      break;
+    case UNKNOWN:
+    default:
+      Serial.println("Ping failed");
+      break;
+  }
+}
+#endif
+
+
 void setup() {
   Serial.begin(115200);
   pinMode(buttonPin, INPUT_PULLUP);
+
+  #if ETHERNET
+  Serial.println("Ethernet init");
+  if (Ethernet.hardwareStatus() == EthernetNoHardware) {
+    Serial.println("Ethernet shield was not found. Sorry, can't run without hardware. :(");
+    while (true) {
+      delay(1);
+    }
+  } 
+  if (Ethernet.linkStatus() == LinkOFF) {
+    Serial.println("Ethernet cable is not connected.");
+    while (true) {
+      delay(1);
+    }
+  }
+  if (Ethernet.begin(mac) == 0) {
+    Serial.println("Failed to configure Ethernet using DHCP");
+    while (true) {
+      delay(1);
+    }
+  } else {
+    Serial.println("Ethernet initialized with DHCP.");
+    Serial.print("IP Address: ");
+    Serial.println(Ethernet.localIP());
+  }
+  #endif
 }
 
 void loop() {
+
+  #if PING 
+  googlePing();
+  #endif
+
   currentState = digitalRead(buttonPin);
 
   if (!isInit){
