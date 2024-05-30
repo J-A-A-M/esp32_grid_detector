@@ -27,6 +27,34 @@ unsigned long pressedTime = 0;
 
 #define REACTION_TIME 2000
 
+#if ETHERNET
+void ethernetInit(){
+  Serial.println("Ethernet init");
+  if (Ethernet.hardwareStatus() == EthernetNoHardware) {
+    Serial.println("Ethernet shield was not found. Sorry, can't run without hardware. :(");
+    while (true) {
+      delay(1);
+    }
+  }
+  if (Ethernet.linkStatus() == LinkOFF) {
+    Serial.println("Ethernet cable is not connected.");
+    while (true) {
+      delay(1);
+    }
+  }
+  if (Ethernet.begin(mac) == 0) {
+    Serial.println("Failed to configure Ethernet using DHCP");
+    while (true) {
+      delay(1);
+    }
+  } else {
+    Serial.println("Ethernet initialized with DHCP.");
+    Serial.print("IP Address: ");
+    Serial.println(Ethernet.localIP());
+  }
+}
+#endif
+
 
 #if PING 
 void googlePing(){
@@ -58,32 +86,10 @@ void googlePing(){
 void setup() {
   Serial.begin(115200);
   pinMode(buttonPin, INPUT_PULLUP);
-
   #if ETHERNET
-  Serial.println("Ethernet init");
-  if (Ethernet.hardwareStatus() == EthernetNoHardware) {
-    Serial.println("Ethernet shield was not found. Sorry, can't run without hardware. :(");
-    while (true) {
-      delay(1);
-    }
-  } 
-  if (Ethernet.linkStatus() == LinkOFF) {
-    Serial.println("Ethernet cable is not connected.");
-    while (true) {
-      delay(1);
-    }
-  }
-  if (Ethernet.begin(mac) == 0) {
-    Serial.println("Failed to configure Ethernet using DHCP");
-    while (true) {
-      delay(1);
-    }
-  } else {
-    Serial.println("Ethernet initialized with DHCP.");
-    Serial.print("IP Address: ");
-    Serial.println(Ethernet.localIP());
-  }
+  ethernetInit();
   #endif
+
 }
 
 void loop() {
