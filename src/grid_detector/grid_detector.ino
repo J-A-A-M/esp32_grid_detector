@@ -1,21 +1,34 @@
 #define ETHERNET 0
-#define PING 0
+#define WIFI 0
+#define GRID 1
+
+const PROGMEM char* VERSION = "0.1";
+
+#include <Preferences.h>
 
 #if ETHERNET
 #include <Ethernet.h>
 #include <EthernetClient.h>
 byte mac[] = { 0xDE, 0xAD, 0xBE, 0xEF, 0xFE, 0xED }; 
-EthernetClient client;
+EthernetClient  client;
 #endif
 
-#if PING
-#include <ICMPPing.h>
-IPAddress remote_ip(8, 8, 8, 8);
-SOCKET pingSocket = 0;
-ICMPPing ping(pingSocket, (uint16_t)random(0, 255));
+#if WIFI
+#include <WiFiManager.h>
+WiFiManager     wm;
+WiFiClient      client;
 #endif
 
-const int buttonPin = 2;
+
+struct Settings {
+  const char*   apssid            = "GridDetector";
+  const char*   softwareversion   = VERSION;
+  int           gridpin           = 2;
+  char          devicename[31]    = "Grid Detector";
+  char          broadcastname[31] = "griddetector";
+};
+
+Settings settings;
 
 int lastState = LOW;
 int currentState;
@@ -24,11 +37,26 @@ bool gridOfflineNotify;
 int gridStatus;
 bool isInit = true;
 unsigned long pressedTime = 0;
+char chipID[13];
+char localIP[16];
 
 #define REACTION_TIME 2000
 
+void rebootDevice(int time = 2000) {
+  Serial.print("reboot in: ");
+  Serial.println(time);
+  delay(time);
+  ESP.restart();
+}
+
+void initChipID() {
+  uint64_t chipid = ESP.getEfuseMac();
+  sprintf(chipID, "%04x%04x", (uint32_t)(chipid >> 32), (uint32_t)chipid);
+  Serial.printf("ChipID Inited: '%s'\n", chipID);
+}
+
 #if ETHERNET
-void ethernetInit(){
+void initEthernet(){
   Serial.println("Ethernet init");
   if (Ethernet.hardwareStatus() == EthernetNoHardware) {
     Serial.println("Ethernet shield was not found. Sorry, can't run without hardware. :(");
@@ -55,50 +83,71 @@ void ethernetInit(){
 }
 #endif
 
+#if WIFI
+char* getLocalIP() {
+  strcpy(localIP, WiFi.localIP().toString().c_str());
+  return localIP;
+}
 
-#if PING 
-void googlePing(){
-  ICMPEchoReply echoReply = ping(remote_ip, 4);
+void apCallback(WiFiManager* wifiManager) {
+  const char* message = wifiManager->getConfigPortalSSID().c_str();
+  Serial.print("connect to: ");
+  Serial.println(message);
+  WiFi.onEvent(wifiEvents);
+}
 
-  switch (echoReply.status) {
-    case SUCCESS:
-      Serial.print("Ping to ");
-      Serial.print(remote_ip);
-      Serial.print(" successful, time=");
-      Serial.print(echoReply.time);
-      Serial.println("ms");
+void saveConfigCallback() {
+  Serial.print("saved AP: ");
+  Serial.println(wm.getWiFiSSID(true).c_str());
+  delay(2000);
+  rebootDevice();
+}
+
+static void wifiEvents(WiFiEvent_t event) {
+  switch (event) {
+    case ARDUINO_EVENT_WIFI_AP_STACONNECTED: {
+      char softApIp[16];
+      strcpy(softApIp, WiFi.softAPIP().toString().c_str());
+      Serial.print("set in browser: ");
+      Serial.println(softApIp);
+      WiFi.removeEvent(wifiEvents);
       break;
-    case TIMED_OUT:
-      Serial.println("Ping timed out");
-      break;
-    case DESTINATION_UNREACHABLE:
-      Serial.println("Destination unreachable");
-      break;
-    case UNKNOWN:
+    }
     default:
-      Serial.println("Ping failed");
       break;
   }
 }
+
+void initWifi() {
+  Serial.println("Init Wifi");
+  WiFi.mode(WIFI_STA); 
+
+  wm.setHostname(settings.broadcastname);
+  wm.setTitle(settings.devicename);
+  wm.setConfigPortalBlocking(true);
+  wm.setConnectTimeout(3);
+  wm.setConnectRetries(10);
+  wm.setAPCallback(apCallback);
+  wm.setSaveConfigCallback(saveConfigCallback);
+  wm.setConfigPortalTimeout(180);
+  Serial.print("connecting to: ");
+  Serial.println(wm.getWiFiSSID(true).c_str());
+  if (!wm.autoConnect(settings.apssid)) {
+    Serial.println("Reboot");
+    rebootDevice(5000);
+    return;
+  }
+  Serial.println("Wifi initialized with DHCP");
+  wm.setHttpPort(80);
+  wm.startWebPortal();
+  Serial.print("IP Address: ");
+  Serial.println(getLocalIP());
+}
 #endif
 
-
-void setup() {
-  Serial.begin(115200);
-  pinMode(buttonPin, INPUT_PULLUP);
-  #if ETHERNET
-  ethernetInit();
-  #endif
-
-}
-
-void loop() {
-
-  #if PING 
-  googlePing();
-  #endif
-
-  currentState = digitalRead(buttonPin);
+#if GRID
+void gridDetect() {
+  currentState = digitalRead(settings.gridpin);
 
   if (!isInit){
     if (lastState == HIGH && currentState == LOW) {
@@ -131,5 +180,34 @@ void loop() {
   }
 
   lastState = currentState;
+}
+#endif
+
+
+void setup() {
+  Serial.begin(115200);
+  Serial.println("");
+  Serial.println("Setup start");
+  pinMode(settings.gridpin, INPUT_PULLUP);
+  initChipID();
+  #if ETHERNET
+  initEthernet();
+  #endif
+  #if WIFI
+  initWifi();
+  #endif
+  Serial.println("Setup complete");
+}
+
+void loop() {
+
+  #if WIFI
+  wm.process();
+  #endif
+
+  #if GRID
+  gridDetect();
+  #endif
+
   delay(200);
 }
