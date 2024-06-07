@@ -1,4 +1,4 @@
-#define ETHERNET 0
+#define ETHERNET 1
 #define WIFI 0
 #define GRID 1
 
@@ -6,11 +6,16 @@ const PROGMEM char* VERSION = "0.1";
 
 #include <Preferences.h>
 
+#define INIT            0x3
+
 #if ETHERNET
-#include <Ethernet.h>
-#include <EthernetClient.h>
-byte mac[] = { 0xDE, 0xAD, 0xBE, 0xEF, 0xFE, 0xED }; 
-EthernetClient  client;
+#include <ETH.h>
+#define ETH_CLK_MODE    ETH_CLOCK_GPIO0_IN
+#define ETH_POWER_PIN   16
+#define ETH_TYPE        ETH_PHY_LAN8720
+#define ETH_ADDR        1
+#define ETH_MDC_PIN     23
+#define ETH_MDIO_PIN    18
 #endif
 
 #if WIFI
@@ -18,7 +23,6 @@ EthernetClient  client;
 WiFiManager     wm;
 WiFiClient      client;
 #endif
-
 
 struct Settings {
   const char*   apssid            = "GridDetector";
@@ -30,12 +34,12 @@ struct Settings {
 
 Settings settings;
 
-int lastState = LOW;
+static bool connected = false;
+int lastState = INIT;
 int currentState;
 bool gridOnlineNotify;
 bool gridOfflineNotify;
-int gridStatus;
-bool isInit = true;
+int gridStatus = INIT;
 unsigned long pressedTime = 0;
 char chipID[13];
 char localIP[16];
@@ -55,34 +59,6 @@ void initChipID() {
   Serial.printf("ChipID Inited: '%s'\n", chipID);
 }
 
-#if ETHERNET
-void initEthernet(){
-  Serial.println("Ethernet init");
-  if (Ethernet.hardwareStatus() == EthernetNoHardware) {
-    Serial.println("Ethernet shield was not found. Sorry, can't run without hardware. :(");
-    while (true) {
-      delay(1);
-    }
-  }
-  if (Ethernet.linkStatus() == LinkOFF) {
-    Serial.println("Ethernet cable is not connected.");
-    while (true) {
-      delay(1);
-    }
-  }
-  if (Ethernet.begin(mac) == 0) {
-    Serial.println("Failed to configure Ethernet using DHCP");
-    while (true) {
-      delay(1);
-    }
-  } else {
-    Serial.println("Ethernet initialized with DHCP.");
-    Serial.print("IP Address: ");
-    Serial.println(Ethernet.localIP());
-  }
-}
-#endif
-
 #if WIFI
 char* getLocalIP() {
   strcpy(localIP, WiFi.localIP().toString().c_str());
@@ -93,7 +69,7 @@ void apCallback(WiFiManager* wifiManager) {
   const char* message = wifiManager->getConfigPortalSSID().c_str();
   Serial.print("connect to: ");
   Serial.println(message);
-  WiFi.onEvent(wifiEvents);
+  WiFi.onEvent(Events);
 }
 
 void saveConfigCallback() {
@@ -101,21 +77,6 @@ void saveConfigCallback() {
   Serial.println(wm.getWiFiSSID(true).c_str());
   delay(2000);
   rebootDevice();
-}
-
-static void wifiEvents(WiFiEvent_t event) {
-  switch (event) {
-    case ARDUINO_EVENT_WIFI_AP_STACONNECTED: {
-      char softApIp[16];
-      strcpy(softApIp, WiFi.softAPIP().toString().c_str());
-      Serial.print("set in browser: ");
-      Serial.println(softApIp);
-      WiFi.removeEvent(wifiEvents);
-      break;
-    }
-    default:
-      break;
-  }
 }
 
 void initWifi() {
@@ -142,6 +103,57 @@ void initWifi() {
   wm.startWebPortal();
   Serial.print("IP Address: ");
   Serial.println(getLocalIP());
+  connected = true
+}
+#endif
+
+void Events(WiFiEvent_t event) {
+  switch (event) {
+    case ARDUINO_EVENT_WIFI_AP_STACONNECTED: {
+      char softApIp[16];
+      strcpy(softApIp, WiFi.softAPIP().toString().c_str());
+      Serial.print("set in browser: ");
+      Serial.println(softApIp);
+      WiFi.removeEvent(Events);
+      break;
+    }
+    case 18:
+      Serial.println("ETH Started");
+      //set eth hostname here
+      ETH.setHostname("esp32-ethernet");
+      break;
+    case 20:
+      Serial.println("ETH Connected");
+      break;
+    case 22:
+      Serial.print("ETH MAC: ");
+      Serial.print(ETH.macAddress());
+      Serial.print(", IPv4: ");
+      Serial.print(ETH.localIP());
+      if (ETH.fullDuplex()) {
+        Serial.print(", FULL_DUPLEX");
+      }
+      Serial.print(", ");
+      Serial.print(ETH.linkSpeed());
+      Serial.println("Mbps");
+      connected = true;
+      break;
+    case 21:
+      Serial.println("ETH Disconnected");
+      connected = false;
+      break;
+    case SYSTEM_EVENT_ETH_STOP:
+      Serial.println("ETH Stopped");
+      connected = false;
+      break;
+    default:
+      break;
+  }
+}
+
+#if ETHERNET
+void initEthernet() {
+  ETH.begin(ETH_ADDR, ETH_POWER_PIN, ETH_MDC_PIN, ETH_MDIO_PIN, ETH_TYPE, ETH_CLK_MODE);
 }
 #endif
 
@@ -149,21 +161,35 @@ void initWifi() {
 void gridDetect() {
   currentState = digitalRead(settings.gridpin);
 
-  if (!isInit){
-    if (lastState == HIGH && currentState == LOW) {
-      pressedTime = millis();
-      gridOnlineNotify = true;
-      gridOfflineNotify = false;
-      Serial.println("on");
+  if (lastState == HIGH && currentState == LOW) {
+    pressedTime = millis();
+    gridOnlineNotify = true;
+    gridOfflineNotify = false;
+    Serial.println("on");
+  }
+  if (lastState == LOW && currentState == HIGH) {
+    pressedTime = millis();
+    gridOnlineNotify = false;
+    gridOfflineNotify = true;
+    Serial.println("off");
+  }
+  if (lastState == INIT) {
+    pressedTime = millis();
+    Serial.println("grid init");
+    switch (currentState) {
+      case HIGH: {
+        Serial.println("init off");
+        gridOnlineNotify = false;
+        gridOfflineNotify = true;
+        break;
+      }
+      case LOW: {
+        Serial.println("init on");
+        gridOnlineNotify = true;
+        gridOfflineNotify = false;
+        break;
+      }
     }
-    if (lastState == LOW && currentState == HIGH) {
-      pressedTime = millis();
-      gridOnlineNotify = false;
-      gridOfflineNotify = true;
-      Serial.println("off");
-    }
-  }else{
-    isInit = false;
   }
 
   long changeDuration = millis() - pressedTime;
@@ -186,10 +212,12 @@ void gridDetect() {
 
 void setup() {
   Serial.begin(115200);
+  delay(2000);
   Serial.println("");
   Serial.println("Setup start");
   pinMode(settings.gridpin, INPUT_PULLUP);
   initChipID();
+  WiFi.onEvent(Events);
   #if ETHERNET
   initEthernet();
   #endif
@@ -206,8 +234,9 @@ void loop() {
   #endif
 
   #if GRID
-  gridDetect();
+  if (connected) {
+    gridDetect();
+  }
   #endif
-
   delay(200);
 }
