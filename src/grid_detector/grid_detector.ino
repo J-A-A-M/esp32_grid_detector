@@ -103,7 +103,7 @@ void initWifi() {
   wm.startWebPortal();
   Serial.print("IP Address: ");
   Serial.println(getLocalIP());
-  connected = true
+  connected = true;
 }
 #endif
 
@@ -117,6 +117,7 @@ void Events(WiFiEvent_t event) {
       WiFi.removeEvent(Events);
       break;
     }
+    #if ETHERNET
     case 18:
       Serial.println("ETH Started");
       //set eth hostname here
@@ -146,6 +147,7 @@ void Events(WiFiEvent_t event) {
       Serial.println("ETH Stopped");
       connected = false;
       break;
+    #endif
     default:
       break;
   }
