@@ -61,7 +61,12 @@ async def echo(websocket, path):
         "chip_id": "unknown",
     }
 
-    data_task = asyncio.create_task(loop_data(websocket, client, shared_data))
+    match path:
+        case "/grid_detector":
+            data_task = asyncio.create_task(loop_data(websocket, client, shared_data))
+        case _:
+            return
+
     try:
         while True:
             async for message in websocket:

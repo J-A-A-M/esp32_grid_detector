@@ -314,7 +314,7 @@ void socketConnect() {
   client_websocket.onEvent(onEventsCallback);
   long startTime = millis();
   char webSocketUrl[100];
-  sprintf(webSocketUrl, "ws://%s:%d/data", settings.serverhost, settings.websocket_port);
+  sprintf(webSocketUrl, "ws://%s:%d/grid_detector", settings.serverhost, settings.websocket_port);
   Serial.println(webSocketUrl);
   client_websocket.connect(webSocketUrl);
   if (client_websocket.available()) {
@@ -330,7 +330,7 @@ void socketConnect() {
     websocketReconnect = false;
     Serial.println("connected");
   } else {
-    Serial.println("unavailable");
+    Serial.println("not connected");
   }
 }
 
@@ -356,13 +356,13 @@ void onEventsCallback(WebsocketsEvent event, String data) {
     apiConnected = false;
     Serial.println("connnection closed");
   } else if (event == WebsocketsEvent::GotPing) {
-    Serial.println("websocket ping");
+    Serial.println("got websocket ping");
     client_websocket.pong();
     client_websocket.send("pong");
     Serial.println("answered pong");
     websocketLastPingTime = millis();
   } else if (event == WebsocketsEvent::GotPong) {
-    Serial.println("websocket pong");
+    Serial.println("got websocket pong");
   }
 }
 
@@ -391,6 +391,7 @@ void setup() {
 }
 
 void loop() {
+  asyncEngine.run();
   client_websocket.poll();
   #if WIFI
   wm.process();
