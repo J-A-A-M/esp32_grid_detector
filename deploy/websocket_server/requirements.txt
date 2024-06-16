@@ -1,0 +1,3 @@
+aiomcache==0.8.1
+websockets==12.0
+ga4mp==2.0.4
