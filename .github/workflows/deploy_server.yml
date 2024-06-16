@@ -45,7 +45,7 @@ jobs:
                 git fetch --all
                 git switch ${{ github.ref_name }}
                 git pull
-                bash redeploy_web_server.sh -d ${{ secrets.WEB_TOKEN }} -p 80 -m ${{ secrets.MEMCACHED_HOST }}
+                bash redeploy_web_server.sh -d ${{ secrets.WEB_TOKEN }} -m ${{ secrets.MEMCACHED_HOST }}
           - name: Clear unused images
             uses: appleboy/ssh-action@v1.0.3
             with:
