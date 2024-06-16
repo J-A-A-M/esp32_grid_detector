@@ -42,7 +42,7 @@ struct Settings {
   char          broadcastname[31]     = "griddetector";
   int           ws_alert_time         = 150000;
   int           ws_reboot_time        = 300000;
-  char          serverhost[31]        = "10.2.0.106";
+  char          serverhost[31]        = "alerts.net.ua";
   int           websocket_port        = 39447;
 };
 
@@ -325,6 +325,10 @@ void socketConnect() {
     sprintf(firmwareInfo, "firmware:%s_%s", currentFwVersion, settings.identifier);
     Serial.println(firmwareInfo);
     client_websocket.send(firmwareInfo);
+    char chipIdInfo[25];
+    sprintf(chipIdInfo, "chip_id:%s", chipID);
+    Serial.println(chipIdInfo);
+    client_websocket.send(chipIdInfo);
 
     client_websocket.ping();
     websocketReconnect = false;
