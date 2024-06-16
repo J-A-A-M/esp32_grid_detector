@@ -13,7 +13,7 @@ from ga4mp.store import DictStore
 debug_level = os.environ.get("DEBUG_LEVEL") or "DEBUG"
 websocket_port = os.environ.get("WEBSOCKET_PORT") or 39447
 ping_interval = int(os.environ.get("PING_INTERVAL", 20))
-memcache_fetch_interval = int(os.environ.get("MEMCACHE_FETCH_INTERVAL", 1))
+memcache_fetch_interval = int(os.environ.get("MEMCACHE_FETCH_INTERVAL", 60))
 environment = os.environ.get("ENVIRONMENT") or "PROD"
 
 logging.basicConfig(level=debug_level, format="%(asctime)s %(levelname)s : %(message)s")
@@ -43,12 +43,7 @@ async def loop_data(websocket, client, shared_data):
                 client_id = client["firmware"]
         try:
             logger.debug(f"{client_ip}:{client_id}: check")
-            if client["bins"] != shared_data.bins:
-                payload = '{"payload": "bins", "bins": %s}' % shared_data.bins
-                await websocket.send(payload)
-                logger.info(f"{client_ip}:{client_id} <<< new bins")
-                client["bins"] = shared_data.bins
-            await asyncio.sleep(0.1)
+            await asyncio.sleep(1)
         except websockets.exceptions.ConnectionClosedError:
             logger.warning(f"{client_ip}:{client_id} !!! data stopped")
             break
@@ -93,6 +88,8 @@ async def echo(websocket, path):
                         logger.info(f"{client_ip}:{client_id} >>> chip_id saved")
                     case "pong":
                         logger.info(f"{client_ip}:{client_id} >>> pong")
+                    case "grid":
+                        logger.info(f"{client_ip}:{client_id} >>> {data}")
                     case _:
                         logger.info(f"{client_ip}:{client_id} !!! unknown data request")
     except websockets.exceptions.ConnectionClosedError as e:
@@ -119,7 +116,7 @@ async def update_shared_data(shared_data, mc):
 async def print_clients(shared_data, mc):
     while True:
         try:
-            await asyncio.sleep(1)
+            await asyncio.sleep(60)
             logger.info(f"Clients:")
             for client, data in shared_data.clients.items():
                 logger.info(client)
