@@ -35,20 +35,16 @@ shared_data = SharedData()
 
 async def loop_data(websocket, client, shared_data):
     client_ip, client_port = websocket.remote_address
+    client_firmware = client["firmware"]
     while True:
-        match client["firmware"]:
-            case "unknown":
-                client_id = client_port
-            case _:
-                client_id = client["firmware"]
         try:
-            logger.debug(f"{client_ip}:{client_id}: check")
+            logger.debug(f"{client_ip}:{client_port}:{client_firmware}: check")
             await asyncio.sleep(1)
         except websockets.exceptions.ConnectionClosedError:
-            logger.warning(f"{client_ip}:{client_id} !!! data stopped")
+            logger.warning(f"{client_ip}:{client_port}:{client_firmware} !!! data stopped")
             break
         except Exception as e:
-            logger.warning(f"{client_ip}:{client_id}: {e}")
+            logger.warning(f"{client_ip}:{client_port}:{client_firmware}: {e}")
 
 
 async def echo(websocket, path):
@@ -71,15 +67,11 @@ async def echo(websocket, path):
     try:
         while True:
             async for message in websocket:
-                match client["firmware"]:
-                    case "unknown":
-                        client_id = client_port
-                    case _:
-                        client_id = client["firmware"]
-                logger.info(f"{client_ip}:{client_id} >>> {message}")
+                client_firmware = client["firmware"]
+                logger.info(f"{client_ip}:{client_port}:{client_firmware} >>> {message}")
 
                 def split_message(message):
-                    parts = message.split(":", 1)  # Split at most into 2 parts
+                    parts = message.split(":", 1)
                     header = parts[0]
                     data = parts[1] if len(parts) > 1 else ""
                     return header, data
@@ -88,30 +80,29 @@ async def echo(websocket, path):
                 match header:
                     case "firmware":
                         client["firmware"] = data
-                        logger.warning(f"{client_ip}:{client_id} >>> firmware saved")
+                        logger.info(f"{client_ip}:{client_port}:{client_firmware} >>> firmware saved")
                     case "chip_id":
                         client["chip_id"] = data
-                        logger.info(f"{client_ip}:{client_id} >>> chip_id saved")
+                        logger.info(f"{client_ip}:{client_port}:{client_firmware} >>> chip_id saved")
                     case "pong":
-                        logger.info(f"{client_ip}:{client_id} >>> pong")
+                        logger.info(f"{client_ip}:{client_port}:{client_firmware} >>> pong")
                     case "grid":
                         client["grid"] = data
-                        logger.info(f"{client_ip}:{client_id} >>> {data}")
+                        logger.info(f"{client_ip}:{client_port}:{client_firmware} >>> {data}")
                     case _:
-                        logger.info(f"{client_ip}:{client_id} !!! unknown data request")
+                        logger.info(f"{client_ip}:{client_port}:{client_firmware} !!! unknown data request")
     except websockets.exceptions.ConnectionClosedError as e:
         logger.error(f"Connection closed with error - {e}")
     except Exception as e:
         pass
     finally:
-
         data_task.cancel()
         del shared_data.clients[f"{client_ip}_{client_port}"]
         try:
             await data_task
         except asyncio.CancelledError:
-            logger.info(f"{client_ip}:{client_port} !!! tasks cancelled")
-        logger.info(f"{client_ip}:{client_port} !!! end")
+            logger.info(f"{client_ip}:{client_port}:{client_firmware} !!! tasks cancelled")
+        logger.info(f"{client_ip}:{client_port}:{client_firmware} !!! end")
 
 
 async def update_shared_data(shared_data, mc):
