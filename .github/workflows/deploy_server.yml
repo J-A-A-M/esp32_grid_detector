@@ -1,0 +1,56 @@
+name: ☁️ Deploy Microservices
+on:
+  workflow_dispatch:
+    inputs:
+      redeploy_all:
+        type: boolean
+        default: false
+        description: Redeploy all (be careful!)
+      redeploy_web_sockets:
+        type: boolean
+        default: false
+        description: WebSockets
+      redeploy_web_server:
+        type: boolean
+        default: false
+        description: Web server
+
+run-name: Deploy Microservices from '${{ github.ref_name }}' branch
+jobs:
+    deploy_microservices:
+        runs-on: ubuntu-latest
+        steps:
+          - name: Redeploy WebSockets
+            if: ${{ inputs.redeploy_web_sockets || inputs.redeploy_all }}
+            uses: appleboy/ssh-action@v1.0.3
+            with:
+              host: ${{ secrets.SERVER_IP }}
+              username: ${{ secrets.SERVER_SSH_USER }}
+              password: ${{ secrets.SERVER_SSH_PASSWORD }}
+              script: |
+                cd /root/esp32_grid_detector/deploy/
+                git fetch --all
+                git switch ${{ github.ref_name }}
+                git pull
+                bash redeploy_websocket_server.sh -m ${{ secrets.MEMCACHED_HOST }}
+          - name: Redeploy Web Server
+            if: ${{ inputs.redeploy_web_server || inputs.redeploy_all }}
+            uses: appleboy/ssh-action@v1.0.3
+            with:
+              host: ${{ secrets.SERVER_IP }}
+              username: ${{ secrets.SERVER_SSH_USER }}
+              password: ${{ secrets.SERVER_SSH_PASSWORD }}
+              script: |
+                cd /root/esp32_grid_detector/deploy/
+                git fetch --all
+                git switch ${{ github.ref_name }}
+                git pull
+                bash redeploy_web_server.sh -d ${{ secrets.WEB_TOKEN }} -p 80 -m ${{ secrets.MEMCACHED_HOST }}
+          - name: Clear unused images
+            uses: appleboy/ssh-action@v1.0.3
+            with:
+              host: ${{ secrets.SERVER_IP }}
+              username: ${{ secrets.SERVER_SSH_USER }}
+              password: ${{ secrets.SERVER_SSH_PASSWORD }}
+              script: |
+                docker image prune -f

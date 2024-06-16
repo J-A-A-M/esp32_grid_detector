@@ -13,7 +13,7 @@ from ga4mp.store import DictStore
 debug_level = os.environ.get("DEBUG_LEVEL") or "DEBUG"
 websocket_port = os.environ.get("WEBSOCKET_PORT") or 39447
 ping_interval = int(os.environ.get("PING_INTERVAL", 20))
-memcache_fetch_interval = int(os.environ.get("MEMCACHE_FETCH_INTERVAL", 60))
+memcache_fetch_interval = int(os.environ.get("MEMCACHE_FETCH_INTERVAL", 1))
 environment = os.environ.get("ENVIRONMENT") or "PROD"
 
 logging.basicConfig(level=debug_level, format="%(asctime)s %(levelname)s : %(message)s")
@@ -59,6 +59,7 @@ async def echo(websocket, path):
     client = shared_data.clients[f"{client_ip}_{client_port}"] = {
         "firmware": "unknown",
         "chip_id": "unknown",
+        "grid": "unknown"
     }
 
     match path:
@@ -94,6 +95,7 @@ async def echo(websocket, path):
                     case "pong":
                         logger.info(f"{client_ip}:{client_id} >>> pong")
                     case "grid":
+                        client["grid"] = data
                         logger.info(f"{client_ip}:{client_id} >>> {data}")
                     case _:
                         logger.info(f"{client_ip}:{client_id} !!! unknown data request")
@@ -114,8 +116,13 @@ async def echo(websocket, path):
 
 async def update_shared_data(shared_data, mc):
     while True:
-        logger.debug("memcache check")
-        await asyncio.sleep(memcache_fetch_interval)
+        try:
+            logger.debug("update_shared_data")
+            websoket_key = b"grid_detector_websocket_clients"
+            await mc.set(websoket_key, json.dumps(shared_data.clients).encode("utf-8"))
+            await asyncio.sleep(memcache_fetch_interval)
+        except Exception as e:
+            logger.error(f"Error in print_clients: {e}")
 
 
 async def print_clients(shared_data, mc):
@@ -125,10 +132,9 @@ async def print_clients(shared_data, mc):
             logger.info(f"Clients:")
             for client, data in shared_data.clients.items():
                 logger.info(client)
-            websoket_key = b"grid_detector_websocket_clients"
-            await mc.set(websoket_key, json.dumps(shared_data.clients).encode("utf-8"))
+
         except Exception as e:
-            logger.error(f"Error in update_shared_data: {e}")
+            logger.error(f"Error in print_clients: {e}")
 
 
 start_server = websockets.serve(echo, "0.0.0.0", websocket_port, ping_interval=ping_interval)

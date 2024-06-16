@@ -4,8 +4,7 @@
 MEMCACHED_HOST=""
 WEBSOCKET_PORT=39447
 DEBUG_LEVEL="INFO"
-PING_INTERVAL=60
-ENVIRONMENT="PROD"
+PING_INTERVAL=20
 
 # Check for arguments
 while [[ $# -gt 0 ]]; do
@@ -16,14 +15,6 @@ while [[ $# -gt 0 ]]; do
             ;;
         -m|--memcached-host)
             MEMCACHED_HOST="$2"
-            shift 2
-            ;;
-        -s|--api-secret)
-            API_SECRET="$2"
-            shift 2
-            ;;
-        -i|--measurement-id)
-            MEASUREMENT_ID="$2"
             shift 2
             ;;
         -d|--debug-level)
@@ -69,7 +60,7 @@ docker rm grid_detector_websocket_server || true
 
 # Deploying the new container
 echo "Deploying new container..."
-docker run --name grid_detector_websocket_server --restart unless-stopped -d  -p "$WEBSOCKET_PORT":"$WEBSOCKET_PORT" --env WEBSOCKET_PORT="$WEBSOCKET_PORT" --env API_SECRET="$API_SECRET" --env MEASUREMENT_ID="$MEASUREMENT_ID" --env DEBUG_LEVEL="$DEBUG_LEVEL" --env PING_INTERVAL="$PING_INTERVAL" --env MEMCACHED_HOST="$MEMCACHED_HOST" --env ENVIRONMENT="$ENVIRONMENT" grid_detector_websocket_server
+docker run --name grid_detector_websocket_server --restart unless-stopped -d  -p "$WEBSOCKET_PORT":"$WEBSOCKET_PORT" --env WEBSOCKET_PORT="$WEBSOCKET_PORT"  --env DEBUG_LEVEL="$DEBUG_LEVEL" --env PING_INTERVAL="$PING_INTERVAL" --env MEMCACHED_HOST="$MEMCACHED_HOST" grid_detector_websocket_server
 
 echo "Container deployed successfully!"
 
