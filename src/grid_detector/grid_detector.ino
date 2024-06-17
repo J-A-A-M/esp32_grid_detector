@@ -338,9 +338,9 @@ void socketConnect() {
   client_websocket.connect(webSocketUrl);
   if (client_websocket.available()) {
     long connectTime = millis() - startTime;
-    Serial.print("websocket connection time: ");
-    Serial.print(connectTime);
-    Serial.print(" ms\n");
+    char connectTime_c[12];
+    sprintf(connectTime_c, "%ld", connectTime);
+    Serial.printf("websocket connection time: %s ms\n", connectTime_c);
     char firmwareInfo[100];
     sprintf(firmwareInfo, "firmware:%s_%s", currentFwVersion, settings.identifier);
     Serial.printf("firmware: %s\n", firmwareInfo);
