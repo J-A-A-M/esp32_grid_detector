@@ -42,8 +42,9 @@ struct Settings {
   char          broadcastname[31]     = "griddetector";
   int           ws_alert_time         = 150000;
   int           ws_reboot_time        = 300000;
-  char          serverhost[31]        = "10.2.0.106";
+  char          serverhost[31]        = "alerts.net.ua";
   int           websocket_port        = 39447;
+  int           reaction_time         = 2000;
 };
 
 struct Firmware {
@@ -57,21 +58,20 @@ struct Firmware {
 Settings settings;
 Firmware currentFirmware;
 
-static bool connected = false;
-int lastState = INIT;
-int currentState;
-bool gridOnlineNotify;
-bool gridOfflineNotify;
-bool    apiConnected;
-int gridStatus = INIT;
-unsigned long pressedTime = 0;
-char chipID[13];
-char localIP[16];
-bool    websocketReconnect = false;
+time_t  pressedTime = 0;
 time_t  websocketLastPingTime = 0;
+int     lastState = INIT;
+int     gridStatus = INIT;
+int     currentState;
+bool    connected = false;
+bool    gridOnlineNotify;
+bool    gridOfflineNotify;
+bool    apiConnected;
+bool    websocketReconnect = false;
+char    chipID[13];
+char    localIP[16];
 char    currentFwVersion[25];
 
-#define REACTION_TIME 2000
 
 Firmware parseFirmwareVersion(const char *version) {
 
@@ -267,13 +267,13 @@ void gridDetect() {
 
   long changeDuration = millis() - pressedTime;
 
-  if (gridOnlineNotify && changeDuration > REACTION_TIME && currentState == LOW && gridStatus != HIGH) {
+  if (gridOnlineNotify && changeDuration > settings.reaction_time && currentState == LOW && gridStatus != HIGH) {
     Serial.println("grid ONLINE");
     gridOnlineNotify = false;
     gridStatus = HIGH;
     client_websocket.send("grid:online");
   }
-  if (gridOfflineNotify && changeDuration > REACTION_TIME && currentState == HIGH && gridStatus != LOW) {
+  if (gridOfflineNotify && changeDuration > settings.reaction_time && currentState == HIGH && gridStatus != LOW) {
     Serial.println("grid OFFLINE");
     gridOfflineNotify = false;
     gridStatus = LOW;
