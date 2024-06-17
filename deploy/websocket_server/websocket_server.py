@@ -3,18 +3,14 @@ import websockets
 import logging
 import os
 import json
-import random
 from aiomcache import Client
 from functools import partial
 from datetime import datetime, timezone, timedelta
-from ga4mp import GtagMP
-from ga4mp.store import DictStore
 
 debug_level = os.environ.get("DEBUG_LEVEL") or "DEBUG"
 websocket_port = os.environ.get("WEBSOCKET_PORT") or 39447
 ping_interval = int(os.environ.get("PING_INTERVAL", 20))
 memcache_fetch_interval = int(os.environ.get("MEMCACHE_FETCH_INTERVAL", 1))
-environment = os.environ.get("ENVIRONMENT") or "PROD"
 
 logging.basicConfig(level=debug_level, format="%(asctime)s %(levelname)s : %(message)s")
 logger = logging.getLogger(__name__)

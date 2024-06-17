@@ -29,7 +29,7 @@ WiFiManager     wm;
 WiFiClient      client;
 #endif
 
-using namespace websockets;
+using namespace   websockets;
 WebsocketsClient  client_websocket;
 Async             asyncEngine = Async(20);
 
@@ -37,6 +37,8 @@ struct Settings {
   const char*   apssid                = "GridDetector";
   const char*   softwareversion       = VERSION;
   int           gridpin               = 2;
+
+  // ------- web config start
   char          identifier[51]        = "test_01";
   char          devicename[31]        = "Grid Detector";
   char          broadcastname[31]     = "griddetector";
@@ -44,7 +46,9 @@ struct Settings {
   int           ws_reboot_time        = 300000;
   char          serverhost[31]        = "alerts.net.ua";
   int           websocket_port        = 39447;
+  int           updateport            = 9090;
   int           reaction_time         = 2000;
+  // ------- web config end
 };
 
 struct Firmware {
@@ -55,8 +59,9 @@ struct Firmware {
   bool isBeta = false;
 };
 
-Settings settings;
-Firmware currentFirmware;
+Settings    settings;
+Firmware    currentFirmware;
+Preferences preferences;
 
 time_t  pressedTime = 0;
 time_t  websocketLastPingTime = 0;
@@ -128,6 +133,27 @@ void initChipID() {
   uint64_t chipid = ESP.getEfuseMac();
   sprintf(chipID, "%04x%04x", (uint32_t)(chipid >> 32), (uint32_t)chipid);
   Serial.printf("ChipID inited: '%s'\n", chipID);
+}
+
+void initSettings() {
+  Serial.println("init settings");
+  preferences.begin("storage", true);
+
+  preferences.getString("dn", settings.devicename, sizeof(settings.devicename));
+  preferences.getString("bn", settings.broadcastname, sizeof(settings.broadcastname));
+  preferences.getString("host", settings.serverhost, sizeof(settings.serverhost));
+  preferences.getString("id", settings.identifier, sizeof(settings.identifier));
+  settings.websocket_port   = preferences.getInt("wsp", settings.websocket_port);
+  settings.updateport       = preferences.getInt("upport", settings.updateport);
+  settings.ws_alert_time    = preferences.getInt("wsat", settings.ws_alert_time);
+  settings.ws_reboot_time   = preferences.getInt("wsrt", settings.ws_reboot_time);
+  settings.reaction_time    = preferences.getInt("rt", settings.reaction_time);
+
+  preferences.end();
+
+  currentFirmware = parseFirmwareVersion(VERSION);
+  fillFwVersion(currentFwVersion, currentFirmware);
+  Serial.printf("current firmware version: %s\n", currentFwVersion);
 }
 
 #if WIFI
@@ -382,6 +408,7 @@ void setup() {
   Serial.println("setup start");
   pinMode(settings.gridpin, INPUT_PULLUP);
   initChipID();
+  initSettings();
   WiFi.onEvent(Events);
   #if ETHERNET
   initEthernet();
@@ -389,8 +416,6 @@ void setup() {
   #if WIFI
   initWifi();
   #endif
-  currentFirmware = parseFirmwareVersion(VERSION);
-  fillFwVersion(currentFwVersion, currentFirmware);
 
   Serial.println("setup complete");
   socketConnect();
