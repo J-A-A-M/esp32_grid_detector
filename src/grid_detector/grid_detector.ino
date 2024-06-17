@@ -9,7 +9,7 @@ const PROGMEM char* VERSION = "1.0";
 #include <async.h>
 #include <map>
 #include <ArduinoJson.h>
-#include <ArduinoWebsockets.h>
+#include <HTTPUpdate.h>
 
 #define INIT            0x3
 
@@ -26,8 +26,8 @@ const PROGMEM char* VERSION = "1.0";
 #if WIFI
 #include <WiFiManager.h>
 WiFiManager     wm;
-WiFiClient      client;
 #endif
+WiFiClient      client;
 
 using namespace websockets;
 WebsocketsClient  client_websocket;
@@ -71,6 +71,8 @@ bool    websocketReconnect = false;
 char    chipID[13];
 char    localIP[16];
 char    currentFwVersion[25];
+String newFirmwareUrl = "";
+long updateTaskId = -1;
 
 
 Firmware parseFirmwareVersion(const char *version) {
@@ -109,12 +111,7 @@ void fillFwVersion(char* result, Firmware firmware) {
   if (firmware.isBeta) {
     sprintf(beta, "-b%d", firmware.betaBuild);
   }
-#if LITE
-  sprintf(result, "%d.%d%s%s-lite", firmware.major, firmware.minor, patch, beta);
-#else
   sprintf(result, "%d.%d%s%s", firmware.major, firmware.minor, patch, beta);
-#endif
-
 }
 
 void rebootDevice(int time = 2000) {
@@ -229,6 +226,50 @@ void initEthernet() {
   ETH.begin(ETH_ADDR, ETH_POWER_PIN, ETH_MDC_PIN, ETH_MDIO_PIN, ETH_TYPE, ETH_CLK_MODE);
 }
 #endif
+
+void initUpdate() {
+  Serial.println("init update");
+  httpUpdate.onStart([]() {
+    Serial.println("update start");
+    client_websocket.send("update:started");
+  });
+  httpUpdate.onEnd([]() {
+    Serial.println("update done");
+    client_websocket.send("update:done");
+    rebootDevice();
+  });
+  httpUpdate.onError([](int error) {
+    client_websocket.send(String("update:error_") + error);
+    Serial.printf("error: %d\n", error);
+    updateTaskId = -1;
+    newFirmwareUrl.clear();
+  });
+}
+
+void updateFw() {
+  if (newFirmwareUrl.isEmpty()) {
+    Serial.println("no firmware url");
+    return;
+  }
+  Serial.printf("Firmware url: %s\n", newFirmwareUrl);
+  t_httpUpdate_return fwRet = httpUpdate.update(client, newFirmwareUrl, VERSION);
+  handleUpdateStatus(fwRet);
+}
+
+void handleUpdateStatus(t_httpUpdate_return ret) {
+  Serial.println("Firmware update status:");
+  switch (ret) {
+    case HTTP_UPDATE_FAILED:
+      Serial.printf("Error Occurred. Error (%d): %s\n", httpUpdate.getLastError(), httpUpdate.getLastErrorString().c_str());
+      break;
+    case HTTP_UPDATE_NO_UPDATES:
+      Serial.println("HTTP_UPDATE_NO_UPDATES");
+      break;
+    case HTTP_UPDATE_OK:
+      Serial.println("Firmware update successfully completed. Rebooting...");
+      break;
+  }
+}
 
 #if GRID
 void gridDetect() {
@@ -351,6 +392,23 @@ void onMessageCallback(WebsocketsMessage message) {
     if (payload == "ping") {
       Serial.println("heartbeat from server");
       websocketLastPingTime = millis();
+    } else if (payload == "update") {
+      Serial.println("update firmware");
+      unsigned long delayTime = int(data["delay"]) * 1000;
+      newFirmwareUrl = data["url"].as<String>();
+      if (updateTaskId != -1) {
+        asyncEngine.clearInterval(updateTaskId);
+      }
+      updateTaskId = asyncEngine.setTimeout(updateFw, delayTime);
+    } else if (payload == "update_cancel") {
+      Serial.println("update cancel");
+      if (updateTaskId != -1) {
+        asyncEngine.clearInterval(updateTaskId);
+      }
+      client_websocket.send("update:canceled");
+    } else if (payload == "reboot") {
+      Serial.println("rebooting...");
+      rebootDevice(3000);
     }
   }
 }
@@ -391,6 +449,7 @@ void setup() {
   #endif
   currentFirmware = parseFirmwareVersion(VERSION);
   fillFwVersion(currentFwVersion, currentFirmware);
+  initUpdate();
 
   Serial.println("setup complete");
   socketConnect();
