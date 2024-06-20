@@ -3,7 +3,7 @@
 # Default values
 DATA_TOKEN=""
 MEMCACHED_HOST=""
-PORT=9090
+PORT=8080
 
 # Check for arguments
 while [[ $# -gt 0 ]]; do
