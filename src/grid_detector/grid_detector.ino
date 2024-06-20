@@ -39,7 +39,7 @@ struct Settings {
   int           gridpin               = 2;
 
   // ------- web config start
-  char          identifier[51]        = "test_01";
+  char          identifier[51]        = "tr1-2";
   char          devicename[31]        = "Grid Detector";
   char          broadcastname[31]     = "griddetector";
   int           ws_alert_time         = 150000;
@@ -341,9 +341,14 @@ void socketConnect() {
     char connectTime_c[12];
     sprintf(connectTime_c, "%ld", connectTime);
     Serial.printf("websocket connection time: %s ms\n", connectTime_c);
+    char nodeInfo[100];
+    sprintf(nodeInfo, "node:%s", settings.identifier);
+    Serial.printf("node: %s\n", nodeInfo);
+    client_websocket.send(nodeInfo);
     char firmwareInfo[100];
-    sprintf(firmwareInfo, "firmware:%s_%s", currentFwVersion, settings.identifier);
+    sprintf(firmwareInfo, "firmware:%s", currentFwVersion);
     Serial.printf("firmware: %s\n", firmwareInfo);
+    client_websocket.send(firmwareInfo);
     char chipIdInfo[25];
     sprintf(chipIdInfo, "chip_id:%s", chipID);
     Serial.printf("chip_id: %s\n", chipIdInfo);

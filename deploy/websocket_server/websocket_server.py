@@ -19,6 +19,18 @@ logger = logging.getLogger(__name__)
 memcached_host = os.environ.get("MEMCACHED_HOST") or "localhost"
 mc = Client(memcached_host, 11211)
 
+nodes_list = {
+    "t4a-9",
+    "tr1-2",
+    "rk2a-4"
+}
+
+empty_node = {
+    "grid": "unknown",
+    "grid_change_time": 0,
+    "status_change_time": 0
+}
+
 
 class SharedData:
     def __init__(self):
@@ -29,18 +41,20 @@ class SharedData:
 shared_data = SharedData()
 
 
-async def loop_data(websocket, client, shared_data):
+async def loop_data(websocket, shared_data):
     client_ip, client_port = websocket.remote_address
-    client_firmware = client["firmware"]
+
     while True:
+        client = shared_data.clients[f"{client_ip}_{client_port}"]
+        client_node = client["node"]
         try:
-            logger.debug(f"{client_ip}:{client_port}:{client_firmware}: check")
+            logger.debug(f"{client_ip}:{client_port}:{client_node}: check")
             await asyncio.sleep(1)
         except websockets.exceptions.ConnectionClosedError:
-            logger.warning(f"{client_ip}:{client_port}:{client_firmware} !!! data stopped")
+            logger.warning(f"{client_ip}:{client_port}:{client_node} !!! data stopped")
             break
         except Exception as e:
-            logger.warning(f"{client_ip}:{client_port}:{client_firmware}: {e}")
+            logger.warning(f"{client_ip}:{client_port}:{client_node}: {e}")
 
 
 async def echo(websocket, path):
@@ -51,20 +65,21 @@ async def echo(websocket, path):
     client = shared_data.clients[f"{client_ip}_{client_port}"] = {
         "firmware": "unknown",
         "chip_id": "unknown",
+        "node": "unknown",
         "grid": "unknown"
     }
 
     match path:
         case "/grid_detector":
-            data_task = asyncio.create_task(loop_data(websocket, client, shared_data))
+            data_task = asyncio.create_task(loop_data(websocket, shared_data))
         case _:
             return
 
     try:
         while True:
             async for message in websocket:
-                client_firmware = client["firmware"]
-                logger.info(f"{client_ip}:{client_port}:{client_firmware} >>> {message}")
+                client_node = client["node"]
+                logger.info(f"{client_ip}:{client_port}:{client_node} >>> {message}")
 
                 def split_message(message):
                     parts = message.split(":", 1)
@@ -76,17 +91,21 @@ async def echo(websocket, path):
                 match header:
                     case "firmware":
                         client["firmware"] = data
-                        logger.info(f"{client_ip}:{client_port}:{client_firmware} >>> firmware saved")
+                        logger.info(f"{client_ip}:{client_port}:{client_node} >>> firmware saved")
                     case "chip_id":
                         client["chip_id"] = data
-                        logger.info(f"{client_ip}:{client_port}:{client_firmware} >>> chip_id saved")
+                        logger.info(f"{client_ip}:{client_port}:{client_node} >>> chip_id saved")
                     case "pong":
-                        logger.info(f"{client_ip}:{client_port}:{client_firmware} >>> pong")
+                        logger.info(f"{client_ip}:{client_port}:{client_node} >>> pong")
+                    case "node":
+                        client["node"] = data
+                        logger.info(f"{client_ip}:{client_port}:{client_node} >>> node {data}")
+                        logger.info(f"{client_ip}:{client_port}:{client_node} >>> node saved")
                     case "grid":
                         client["grid"] = data
-                        logger.info(f"{client_ip}:{client_port}:{client_firmware} >>> {data}")
+                        logger.info(f"{client_ip}:{client_port}:{client_node} >>> {data}")
                     case _:
-                        logger.info(f"{client_ip}:{client_port}:{client_firmware} !!! unknown data request")
+                        logger.info(f"{client_ip}:{client_port}:{client_node} !!! unknown data request")
     except websockets.exceptions.ConnectionClosedError as e:
         logger.error(f"Connection closed with error - {e}")
     except Exception as e:
@@ -116,12 +135,66 @@ async def print_clients(shared_data, mc):
     while True:
         try:
             await asyncio.sleep(60)
-            logger.info(f"Clients:")
+            logger.info(f"-----\nClients:")
             for client, data in shared_data.clients.items():
-                logger.info(client)
-
+                logger.info(f'{client}:{data["node"]}')
+            logger.info(f"-----\n")
         except Exception as e:
             logger.error(f"Error in print_clients: {e}")
+
+
+async def update_grid_status(shared_data, mc):
+    await asyncio.sleep(10)
+    logger.debug("grid_status_start")
+
+    nodes_status_memcached = await mc.get(b"grid_detector_nodes")
+    if nodes_status_memcached:
+        nodes_status = json.loads(nodes_status_memcached.decode("utf-8"))
+    else:
+        nodes_status = {}
+
+
+    while True:
+        try:
+            logger.debug("grid_status_update")
+
+            for node in nodes_list:
+                node_found = False
+                if not node in nodes_status:
+                    nodes_status[node] = empty_node
+                current_state = nodes_status.get(node, empty_node)
+                for client_id, client in shared_data.clients.items():
+                    if client["node"] == node:
+                        node_found = True
+                        status = client["grid"]
+                        continue
+                if not node_found:
+                    status = "unknown"
+
+                if current_state['grid'] != status:
+                    status_change_time = datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%S+00:00")
+                    logger.info(f"Node {node} status change: {current_state['grid']} >>> {status}")
+                else:
+                    status_change_time = nodes_status[node]['status_change_time']
+
+                if (current_state['grid'] in ['online','offline']) and (status in ['online','offline']) and current_state['grid'] != status:
+                    grid_change_time = datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%S+00:00")
+                    logger.info(f"Node {node} grid change: {current_state['grid']} >>> {status}")
+                else:
+                    grid_change_time = nodes_status[node]['grid_change_time']
+
+
+                nodes_status[node] = {
+                    "grid": status,
+                    "grid_change_time": grid_change_time,
+                    "status_change_time": status_change_time
+                }
+
+            await mc.set(b'grid_detector_nodes', json.dumps(nodes_status).encode("utf-8"))
+            await asyncio.sleep(memcache_fetch_interval)
+        except Exception as e:
+            logger.error(f"Error in grid_status_update: {e}")
+            await asyncio.sleep(memcache_fetch_interval)
 
 
 start_server = websockets.serve(echo, "0.0.0.0", websocket_port, ping_interval=ping_interval)
@@ -132,5 +205,7 @@ update_shared_data_coroutine = partial(update_shared_data, shared_data, mc)()
 asyncio.get_event_loop().create_task(update_shared_data_coroutine)
 print_clients_coroutine = partial(print_clients, shared_data, mc)()
 asyncio.get_event_loop().create_task(print_clients_coroutine)
+update_grid_status_coroutine = partial(update_grid_status, shared_data, mc)()
+asyncio.get_event_loop().create_task(update_grid_status_coroutine)
 
 asyncio.get_event_loop().run_forever()
