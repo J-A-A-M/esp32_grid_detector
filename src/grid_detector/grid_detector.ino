@@ -76,8 +76,8 @@ bool    websocketReconnect = false;
 char    chipID[13];
 char    localIP[16];
 char    currentFwVersion[25];
-String newFirmwareUrl = "";
-long updateTaskId = -1;
+String  newFirmwareUrl = "";
+long    updateTaskId = -1;
 
 
 Firmware parseFirmwareVersion(const char *version) {

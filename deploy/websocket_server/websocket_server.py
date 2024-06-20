@@ -3,6 +3,7 @@ import websockets
 import logging
 import os
 import json
+import random
 from aiomcache import Client
 from functools import partial
 from datetime import datetime, timezone, timedelta
@@ -34,8 +35,9 @@ empty_node = {
 
 class SharedData:
     def __init__(self):
-        self.bins = "[]"
         self.clients = {}
+        self.firmware_url = ""
+        self.firmware_version = ""
 
 
 shared_data = SharedData()
@@ -47,6 +49,12 @@ async def loop_data(websocket, shared_data):
     while True:
         client = shared_data.clients[f"{client_ip}_{client_port}"]
         client_node = client["node"]
+        current_firmware = shared_data.firmware_version
+        current_firmware_url = shared_data.firmware_url
+        if (current_firmware and current_firmware_url) and (client["firmware"] != current_firmware):
+            logger.info(f"{client_ip}:{client_port}:{client_node} !!! send firmware update ({current_firmware})")
+            payload = '{"payload":"update","url":"%s","delay":%d}' % current_firmware_url, random.randint(1, 100)
+            await websocket.send(payload)
         try:
             logger.debug(f"{client_ip}:{client_port}:{client_node}: check")
             await asyncio.sleep(1)
@@ -79,6 +87,7 @@ async def echo(websocket, path):
         while True:
             async for message in websocket:
                 client_node = client["node"]
+                client_firmware = client["firmware"]
                 logger.info(f"{client_ip}:{client_port}:{client_node} >>> {message}")
 
                 def split_message(message):
@@ -91,6 +100,7 @@ async def echo(websocket, path):
                 match header:
                     case "firmware":
                         client["firmware"] = data
+                        client_firmware = data
                         logger.info(f"{client_ip}:{client_port}:{client_node} >>> firmware saved")
                     case "chip_id":
                         client["chip_id"] = data
@@ -99,11 +109,15 @@ async def echo(websocket, path):
                         logger.info(f"{client_ip}:{client_port}:{client_node} >>> pong")
                     case "node":
                         client["node"] = data
+                        client_node = data
                         logger.info(f"{client_ip}:{client_port}:{client_node} >>> node {data}")
                         logger.info(f"{client_ip}:{client_port}:{client_node} >>> node saved")
                     case "grid":
                         client["grid"] = data
                         logger.info(f"{client_ip}:{client_port}:{client_node} >>> {data}")
+                    case "update":
+                        current_status = data
+                        logger.info(f"{client_ip}:{client_port}:{client_node} >>> firmware update status: {current_status}")
                     case _:
                         logger.info(f"{client_ip}:{client_port}:{client_node} !!! unknown data request")
     except websockets.exceptions.ConnectionClosedError as e:
@@ -126,6 +140,19 @@ async def update_shared_data(shared_data, mc):
             logger.debug("update_shared_data")
             websoket_key = b"grid_detector_websocket_clients"
             await mc.set(websoket_key, json.dumps(shared_data.clients).encode("utf-8"))
+            await asyncio.sleep(memcache_fetch_interval)
+        except Exception as e:
+            logger.error(f"Error in print_clients: {e}")
+
+async def check_firmware(mc):
+    while True:
+        try:
+            logger.debug("check_firmware")
+            websoket_key = b"firmware_info"
+            firmware_info = await mc.get(websoket_key)
+            if firmware_info:
+                shared_data.firmware_url = json.loads(firmware_info.decode("utf-8"))["firmware_url"]
+                shared_data.firmware_version = json.loads(firmware_info.decode("utf-8"))["firmware_version"]
             await asyncio.sleep(memcache_fetch_interval)
         except Exception as e:
             logger.error(f"Error in print_clients: {e}")
@@ -202,6 +229,7 @@ start_server = websockets.serve(echo, "0.0.0.0", websocket_port, ping_interval=p
 asyncio.get_event_loop().run_until_complete(start_server)
 
 update_shared_data_coroutine = partial(update_shared_data, shared_data, mc)()
+check_firmware_coroutine = partial(check_firmware, mc)()
 asyncio.get_event_loop().create_task(update_shared_data_coroutine)
 print_clients_coroutine = partial(print_clients, shared_data, mc)()
 asyncio.get_event_loop().create_task(print_clients_coroutine)

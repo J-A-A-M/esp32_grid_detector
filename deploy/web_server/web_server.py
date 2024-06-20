@@ -87,6 +87,22 @@ async def nodes(request):
         return JSONResponse(json.loads(data_full.decode("utf-8")))
     else:
         return JSONResponse({})
+    
+async def update_fw(request):
+    if request.path_params["token"] == data_token:
+        firmware_url = request.query_params.get("firmware_url")
+        firmware_version = request.query_params.get("firmware_version")
+        if firmware_url and firmware_version:
+            firmware_info = {
+                "firmware_url": firmware_url,
+                "firmware_version": firmware_version,
+            }
+            await mc.set(b"firmware_info", json.dumps(firmware_info).encode("utf-8"))
+            return JSONResponse({"status": "ok"})
+        else:
+            return JSONResponse({"status": "bed request"})
+    else:
+        return JSONResponse({})
 
 
 def get_local_time_formatted():
@@ -114,6 +130,7 @@ app = Starlette(
         Route("/", main),
         Route("/data_{token}.json", data),
         Route("/nodes_{token}.json", nodes),
+        Route("/update_fw_{token}", data),
     ],
 )
 
