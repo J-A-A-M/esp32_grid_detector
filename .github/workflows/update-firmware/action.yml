@@ -20,5 +20,5 @@ runs:
         echo "Updating firmware version to ${{ inputs.firmware-version }}"
         echo "Updating firmware binary url to ${{ inputs.firmware-bin-url }}"
         # Update firmware version and url on the server
-        # curl -X POST -H "Content-Type: application/json" -d '{"firmware_version": "${{ inputs.firmware-version }}", "firmware_url": "${{ inputs.firmware-bin-url }}"}' ${{ inputs.web-server-url }}
+        curl -X POST -H "Content-Type: application/json" -d '{"firmware_version": "${{ inputs.firmware-version }}", "firmware_url": "${{ inputs.firmware-bin-url }}"}' ${{ inputs.web-server-url }}
 
