@@ -7,14 +7,18 @@ inputs:
   firmware-version:
     description: 'Firmware version'
     default: ''
+  web-server-url:
+    description: 'Url to the web server'
+    default: ''
 runs:
   using: 'composite'
   steps:
     - name: Update firmware on the server
-      if: ${{ inputs.firmware-bin-url != '' && inputs.firmware-version != '' }}
+      if: ${{ inputs.firmware-bin-url != '' && inputs.firmware-version != '' && inputs.web-server-url != '' }}
+      shell: bash
       run: |
         echo "Updating firmware version to ${{ inputs.firmware-version }}"
         echo "Updating firmware binary url to ${{ inputs.firmware-bin-url }}"
         # Update firmware version and url on the server
-        # curl -X POST -H "Content-Type: application/json" -d '{"firmware_version": "${{ inputs.firmware-version }}", "firmware_url": "${{ inputs.firmware-bin-url }}"}' ${{ secrets.UPDATE_FIRMWARE_URL }}
+        # curl -X POST -H "Content-Type: application/json" -d '{"firmware_version": "${{ inputs.firmware-version }}", "firmware_url": "${{ inputs.firmware-bin-url }}"}' ${{ inputs.web-server-url }}
 

@@ -60,4 +60,5 @@ jobs:
         with:
           firmware-bin-url: ${{ steps.create_release.outputs.upload_url }}
           firmware-version: ${{ inputs.release-version }}
+          web-server-url: ${{ secrets.UPDATE_FIRMWARE_URL }}
 
