@@ -145,6 +145,7 @@ async def update_shared_data(shared_data, mc):
             logger.error(f"Error in print_clients: {e}")
 
 async def check_firmware(mc):
+    await asyncio.sleep(10)
     while True:
         try:
             logger.debug("check_firmware")
@@ -229,8 +230,9 @@ start_server = websockets.serve(echo, "0.0.0.0", websocket_port, ping_interval=p
 asyncio.get_event_loop().run_until_complete(start_server)
 
 update_shared_data_coroutine = partial(update_shared_data, shared_data, mc)()
-check_firmware_coroutine = partial(check_firmware, mc)()
 asyncio.get_event_loop().create_task(update_shared_data_coroutine)
+check_firmware_coroutine = partial(check_firmware, mc)()
+asyncio.get_event_loop().create_task(check_firmware_coroutine)
 print_clients_coroutine = partial(print_clients, shared_data, mc)()
 asyncio.get_event_loop().create_task(print_clients_coroutine)
 update_grid_status_coroutine = partial(update_grid_status, shared_data, mc)()
