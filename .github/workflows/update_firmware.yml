@@ -1,0 +1,23 @@
+name: 🔄 Update Firmware
+on:
+  workflow_dispatch:
+    inputs:
+      firmware-url:
+        description: 'Url to the firmware binary'
+        required: true
+        type: string
+      firmware-version:
+        description: 'Firmware version'
+        required: true
+        type: string
+run-name: Update firmware to ${{ inputs.firmware-version }}
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Update firmware on the server
+        uses: ./.github/workflows/update-firmware
+        with:
+          firmware-bin-url: ${{ inputs.firmware-url }}
+          firmware-version: ${{ inputs.firmware-version }}
+

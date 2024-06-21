@@ -1,0 +1,69 @@
+name: 🚀 Release Firmware
+on:
+  workflow_dispatch:
+    inputs:
+        release-version:
+          description: 'Release version'
+          required: true
+          type: string
+run-name: Release ${{ inputs.release-version }}
+jobs:
+  build:
+    if: ${{ github.ref_name == 'master' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Replace version in firmware source
+        run: |
+          sed -i 's/VERSION = ".*";/VERSION = "${{ inputs.release-version }}";/' ${{ github.workspace }}src/grid_detector/grid_detector.ino
+      - name: Compile firmware
+        uses: ./.github/workflows/firmware-compile
+      - name: Copy bin to upload
+        run: |
+          cp -f ${{ github.workspace }}/src/grid_detector/build/esp32.esp32.esp32/grid_detector.ino.bin ${{ github.workspace }}/Grid_Detector_${{ inputs.release-version }}.bin
+      - name: Upload firmware
+        uses: actions/upload-artifact@v4
+        with:
+          name: Grid_Detector_${{ inputs.release-version }}.bin
+          path: ${{ github.workspace }}/Grid_Detector_${{ inputs.release-version }}.bin
+  release_firmware:
+    needs: [build]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      id-token: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Replace version in firmware source
+        run: |
+          sed -i 's/VERSION = ".*";/VERSION = "${{ inputs.release-version }}";/' ${{ github.workspace }}src/grid_detector/grid_detector.ino
+      - name: Download firmware
+        uses: actions/download-artifact@v4
+        with:
+          name: Grid_Detector_${{ inputs.release-version }}.bin
+          path: ${{ github.workspace }}/Grid_Detector_${{ inputs.release-version }}.bin
+      - name: Commit changes
+        id: commit_changes
+        uses: stefanzweifel/git-auto-commit-action@v5
+        with:
+          commit_message: "Release ${{ inputs.release-version }}"
+          file_pattern: ${{ github.workspace }}/src/firmware/firmware.ino ${{ github.workspace }}/bin/ ${{ github.workspace }}/bin_beta/ ${{ github.workspace }}/flasher/
+      - name: Create Release
+        id: create_release
+        uses: ncipollo/release-action@v1
+        with:
+          artifacts: "${{ github.workspace }}/Grid_Detector_${{ inputs.release-version }}.bin/Grid_Detector_${{ inputs.release-version }}.bin"
+          name: "${{ inputs.release-version }}"
+          commit: ${{ github.sha }}
+          tag: ${{ inputs.release-version }}
+          generateReleaseNotes: true
+          allowUpdates: true
+          makeLatest: true
+      - name: Update firmware on the server
+        uses: ./.github/workflows/update-firmware
+        with:
+          firmware-bin-url: ${{ steps.create_release.outputs.upload_url }}
+          firmware-version: ${{ inputs.release-version }}
+
