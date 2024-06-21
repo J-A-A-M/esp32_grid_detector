@@ -52,6 +52,7 @@ async def loop_data(websocket, shared_data):
         current_firmware = shared_data.firmware_version
         current_firmware_url = shared_data.firmware_url
         if (current_firmware and current_firmware_url) and (client["firmware"] != current_firmware):
+            logger.info(f"{client_ip}:{client_port}:{client_node} !!!  new firmware ({current_firmware})")
             payload = '{"payload":"update","url":"%s"}' % (current_firmware_url, random.randint(1, 100))
             await websocket.send(payload)
             logger.info(f"{client_ip}:{client_port}:{client_node} <<< send firmware update ({current_firmware})")
