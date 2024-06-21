@@ -90,7 +90,7 @@ async def data(request):
                 "firmware": firmware,
                 "data": data,
             }
-        ))
+        )
     else:
         return JSONResponse({})
 
