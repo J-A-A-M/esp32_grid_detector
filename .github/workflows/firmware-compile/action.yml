@@ -1,0 +1,43 @@
+name: 'Firmware Compile Action'
+description: 'Unzip libraries and compile firmware'
+inputs:
+  enable-warnings-report:
+    description: 'Enable warnings report'
+    default: 'false'
+  enable-deltas-report:
+    description: 'Enable deltas report'
+    default: 'false'
+  sketches-report-path:
+    description: 'Sketches report path'
+    default: 'sketches-reports'
+runs:
+  using: 'composite'
+  steps:
+    - name: Unzip libraries
+      shell: bash
+      run: |
+        unzip -q ${{ github.workspace }}/libs/ArduinoAsync-master.zip -d ${{ github.workspace }}/libs/
+    - name: Compile firmware
+      uses: arduino/compile-sketches@v1
+      with:
+        sketch-paths: |
+          - ${{ github.workspace }}src/grid_detector
+        fqbn: esp32:esp32:esp32
+        platforms: |
+          - name: esp32:esp32
+            source-url: https://github.com/espressif/arduino-esp32/releases/download/2.0.17/package_esp32_index.json
+            version: 2.0.17
+        libraries: |
+          - source-path: ${{ github.workspace }}/libs/ArduinoAsync-master
+          - name: ArduinoJson
+            version: 7.0.4
+          - name: ArduinoWebsockets
+            version: 0.5.3
+          - name: WiFiManager
+            version: 2.0.17
+        enable-warnings-report: ${{ inputs.enable-warnings-report }}
+        enable-deltas-report: ${{ inputs.enable-deltas-report }}
+        sketches-report-path: ${{ inputs.sketches-report-path }}
+        cli-compile-flags: |
+          - --export-binaries
+          - --warnings=default

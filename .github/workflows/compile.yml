@@ -1,0 +1,73 @@
+  name: 🏗️ Compile Firmware + Lint Check + Black Check
+  on:
+    pull_request:
+      types: [ opened, synchronize, reopened ]
+      branches:
+        - master
+    workflow_dispatch:
+  env:
+    SKETCHES_REPORTS_PATH: sketches-reports
+    SKETCHES_REPORTS_ARTIFACT_NAME: sketches-reports
+  jobs:
+    compile_firmware:
+        runs-on: ubuntu-latest
+        steps:
+          - uses: actions/checkout@v4
+          - name: Compile firmware
+            uses: ./.github/workflows/firmware-compile
+            with:
+              enable-warnings-report: true
+              sketches-report-path: ${{ env.SKETCHES_REPORTS_PATH }}
+          - name: Copy bin file
+            run: |
+              cp -f ${{ github.workspace }}/src/grid_detector/build/esp32.esp32.esp32/grid_detector.ino.bin ${{ github.workspace }}/grid_detector.bin
+          - name: Upload firmware
+            uses: actions/upload-artifact@v4
+            with:
+              name: grid_detector.bin
+              path: ${{ github.workspace }}/grid_detector.bin
+          - name: Upload reports
+            uses: actions/upload-artifact@v4
+            with:
+              name: ${{ env.SKETCHES_REPORTS_ARTIFACT_NAME }}
+              path: ${{ env.SKETCHES_REPORTS_PATH }}
+    memory_usage_change:
+        runs-on: ubuntu-latest
+        permissions:
+          contents: read
+          pull-requests: write
+        steps:
+          - uses: actions/checkout@v4
+          - name: Memory usage change
+            uses: ./.github/workflows/firmware-compile
+            with:
+              enable-deltas-report: true
+          - name: Report Delta to PR
+            uses: arduino/report-size-deltas@v1
+    lint_check:
+        runs-on: ubuntu-latest
+        steps:
+          - uses: actions/checkout@v4
+          - name: Lint check
+            uses: arduino/arduino-lint-action@v1
+            with:
+              path: ${{ github.workspace }}/src/grid_detector
+              verbose: true
+              compliance: specification
+              report-file: ${{ github.workspace }}/lint-report.json
+          - name: Upload lint report
+            uses: actions/upload-artifact@v4
+            with:
+              name: lint-report
+              path: ${{ github.workspace }}/lint-report.json
+    run_black:
+        runs-on: ubuntu-latest
+        steps:
+          - uses: actions/checkout@v4
+          - name: Run Black in the check mode
+            uses: psf/black@stable
+            with:
+              options: "--check --verbose --line-length 120 --target-version py312 deploy"
+              src: ${{ github.workspace }}/deploy
+              version: "~= 24.0"
+              

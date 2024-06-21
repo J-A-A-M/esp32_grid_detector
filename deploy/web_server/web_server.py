@@ -88,10 +88,11 @@ async def nodes(request):
     else:
         return JSONResponse({})
     
-async def update_fw(request):
+async def update_fw(request: Request):
     if request.path_params["token"] == data_token:
-        firmware_url = request.query_params.get("firmware_url")
-        firmware_version = request.query_params.get("firmware_version")
+        request_body = await request.json()
+        firmware_url = request_body["firmware_url"]
+        firmware_version = request_body["firmware_version"]
         if firmware_url and firmware_version:
             firmware_info = {
                 "firmware_url": firmware_url,
@@ -130,7 +131,7 @@ app = Starlette(
         Route("/", main),
         Route("/data_{token}.json", data),
         Route("/nodes_{token}.json", nodes),
-        Route("/update_fw_{token}", data),
+        Route("/update_fw_{token}", update_fw),
     ],
 )
 
