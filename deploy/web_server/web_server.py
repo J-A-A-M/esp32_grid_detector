@@ -131,7 +131,7 @@ app = Starlette(
         Route("/", main),
         Route("/data_{token}.json", data),
         Route("/nodes_{token}.json", nodes),
-        Route("/update_fw_{token}", update_fw),
+        Route("/update_fw_{token}", update_fw, methods=["POST"]),
     ],
 )
 
