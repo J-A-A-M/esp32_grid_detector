@@ -76,7 +76,13 @@ async def main(request):
 async def data(request):
     if request.path_params["token"] == data_token:
         data_full = await mc.get(b"grid_detector_websocket_clients")
-        return JSONResponse(json.loads(data_full.decode("utf-8")))
+        firmware_full = await mc.get(b"firmware_info")
+        return JSONResponse(json.loads(
+            {
+                "firmware": firmware_full.decode("utf-8"),
+                "data": data_full.decode("utf-8"),
+            }
+        ))
     else:
         return JSONResponse({})
 
