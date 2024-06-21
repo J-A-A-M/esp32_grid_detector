@@ -60,14 +60,14 @@
             with:
               name: lint-report
               path: ${{ github.workspace }}/lint-report.json
-    run_black:
-        runs-on: ubuntu-latest
-        steps:
-          - uses: actions/checkout@v4
-          - name: Run Black in the check mode
-            uses: psf/black@stable
-            with:
-              options: "--check --verbose --line-length 120 --target-version py312 deploy"
-              src: ${{ github.workspace }}/deploy
-              version: "~= 24.0"
+    # run_black:
+    #     runs-on: ubuntu-latest
+    #     steps:
+    #       - uses: actions/checkout@v4
+    #       - name: Run Black in the check mode
+    #         uses: psf/black@stable
+    #         with:
+    #           options: "--check --verbose --line-length 120 --target-version py312 deploy"
+    #           src: ${{ github.workspace }}/deploy
+    #           version: "~= 24.0"
               

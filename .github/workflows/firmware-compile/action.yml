@@ -21,7 +21,7 @@ runs:
       uses: arduino/compile-sketches@v1
       with:
         sketch-paths: |
-          - ${{ github.workspace }}src/grid_detector
+          - ${{ github.workspace }}/src/grid_detector
         fqbn: esp32:esp32:esp32
         platforms: |
           - name: esp32:esp32
