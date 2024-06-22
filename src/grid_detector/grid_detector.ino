@@ -2,7 +2,7 @@
 #define WIFI 1
 #define GRID 1
 
-const PROGMEM char* VERSION = "0.0.1";
+const PROGMEM char* VERSION = "0.0.3";
 
 #include <Preferences.h>
 #include <ArduinoWebsockets.h>
