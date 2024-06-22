@@ -1,8 +1,8 @@
-#define ETHERNET 0
-#define WIFI 1
+#define ETHERNET 1
+#define WIFI 0
 #define GRID 1
 
-const PROGMEM char* VERSION = "0.0.2";
+const PROGMEM char* VERSION = "0.0.1";
 
 #include <Preferences.h>
 #include <ArduinoWebsockets.h>
@@ -163,11 +163,16 @@ void Events(WiFiEvent_t event) {
       Serial.print("ETH connected\n");
       break;
     case 22:
-      Serial.printf("ETH MAC: %s, IPv4: %s", ETH.macAddress(), ETH.localIP());
+      Serial.print("ETH MAC: ");
+      Serial.print(ETH.macAddress());
+      Serial.print(", IPv4: ");
+      Serial.print(ETH.localIP());
       if (ETH.fullDuplex()) {
         Serial.print(", FULL_DUPLEX");
       }
-      Serial.printf(", %s Mbps\n", ETH.linkSpeed());
+      Serial.print(", ");
+      Serial.print(ETH.linkSpeed());
+      Serial.println(" Mbps");
       connected = true;
       break;
     case 21:
@@ -187,6 +192,10 @@ void Events(WiFiEvent_t event) {
 #if ETHERNET
 void initEthernet() {
   ETH.begin(ETH_ADDR, ETH_POWER_PIN, ETH_MDC_PIN, ETH_MDIO_PIN, ETH_TYPE, ETH_CLK_MODE);
+  while(!connected) {
+    delay(1000);
+  }
+  connected = true;
 }
 #endif
 
