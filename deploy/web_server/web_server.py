@@ -115,7 +115,8 @@ async def update_fw(request: Request):
             firmware_dir_path = f"{shared_path}/grid_detector_firmwares"
             if not os.path.exists(firmware_dir_path):
                 os.makedirs(firmware_dir_path)
-            firmware_filename = wget.download(firmware_url, firmware_dir_path)
+            firmware_filename = firmware_url.split("/")[-1]
+            wget.download(firmware_url, firmware_dir_path)
             firmware_info = {
                 "firmware_url": f"http://alerts.net.ua:{web_server_port}/grid_detector_fw/{firmware_filename}",
                 "firmware_version": firmware_version,

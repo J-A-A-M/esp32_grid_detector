@@ -44,13 +44,19 @@ jobs:
         with:
           name: Grid_Detector_${{ inputs.release-version }}.bin
           path: ${{ github.workspace }}/Grid_Detector_${{ inputs.release-version }}.bin
+      - name: Commit changes
+        id: commit_changes
+        uses: stefanzweifel/git-auto-commit-action@v5
+        with:
+          commit_message: "Release ${{ inputs.release-version }}"
+          file_pattern: ${{ github.workspace }}/src/grid_detector/grid_detector.ino
       - name: Create Release
         id: create_release
         uses: ncipollo/release-action@v1
         with:
           artifacts: "${{ github.workspace }}/Grid_Detector_${{ inputs.release-version }}.bin/Grid_Detector_${{ inputs.release-version }}.bin"
           name: "${{ inputs.release-version }}"
-          commit: ${{ github.sha }}
+          commit: ${{ steps.commit_changes.outputs.commit_hash }}
           tag: ${{ inputs.release-version }}
           generateReleaseNotes: true
           allowUpdates: true
