@@ -166,8 +166,8 @@ async def check_firmware(mc):
             websoket_key = b"firmware_info"
             firmware_info = await mc.get(websoket_key)
             if firmware_info:
-                shared_data.wifi_firmware_url = json.loads(firmware_info.decode("utf-8"))["wifi_firmware_url"]
-                shared_data.eth_firmware_url = json.loads(firmware_info.decode("utf-8"))["eth_firmware_url"]
+                shared_data.wifi_firmware_url = json.loads(firmware_info.decode("utf-8"))["firmware_wifi_url"]
+                shared_data.eth_firmware_url = json.loads(firmware_info.decode("utf-8"))["firmware_eth_url"]
                 shared_data.firmware_version = json.loads(firmware_info.decode("utf-8"))["firmware_version"]
             await asyncio.sleep(memcache_fetch_interval + 10)
         except Exception as e:
