@@ -171,7 +171,7 @@ async def check_firmware(mc):
                 shared_data.firmware_version = json.loads(firmware_info.decode("utf-8"))["firmware_version"]
             await asyncio.sleep(memcache_fetch_interval + 10)
         except Exception as e:
-            logger.error(f"Error in print_clients: {e}")
+            logger.error(f"Error in check_firmware: {e}")
 
 
 async def print_clients(shared_data, mc):

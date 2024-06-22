@@ -167,4 +167,4 @@ app = Starlette(
 )
 
 if __name__ == "__main__":
-    uvicorn.run(app, host="0.0.0.0", port=web_server_port)
+    uvicorn.run(app, host="0.0.0.0", port=int(web_server_port))
