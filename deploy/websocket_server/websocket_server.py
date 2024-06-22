@@ -51,7 +51,8 @@ async def loop_data(websocket, shared_data):
         client_node = client["node"]
         current_firmware = shared_data.firmware_version
         current_firmware_url = shared_data.firmware_url
-        if (current_firmware and current_firmware_url) and (client["firmware"] != current_firmware and not client["update_now"]):
+        client_firmware = client["firmware"]
+        if (current_firmware and current_firmware_url and client_firmware and client_firmware != current_firmware and not client["update_now"]):
             logger.info(f"{client_ip}:{client_port}:{client_node} !!!  new firmware ({current_firmware})")
             client["update_now"] = True
             payload = '{"payload":"update","url":"%s","delay":%d}' % (current_firmware_url, random.randint(1, 100))
@@ -73,7 +74,7 @@ async def echo(websocket, path):
 
 
     client = shared_data.clients[f"{client_ip}_{client_port}"] = {
-        "firmware": "unknown",
+        "firmware": "",
         "update_now": False,
         "chip_id": "unknown",
         "node": "unknown",

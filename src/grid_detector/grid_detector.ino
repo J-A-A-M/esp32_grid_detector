@@ -51,16 +51,7 @@ struct Settings {
   // ------- web config end
 };
 
-struct Firmware {
-  int major = 0;
-  int minor = 0;
-  int patch = 0;
-  int betaBuild = 0;
-  bool isBeta = false;
-};
-
 Settings    settings;
-Firmware    currentFirmware;
 Preferences preferences;
 
 time_t  pressedTime = 0;
@@ -75,52 +66,11 @@ bool    apiConnected;
 bool    websocketReconnect = false;
 char    chipID[13];
 char    localIP[16];
-char    currentFwVersion[25];
 String  newFirmwareUrl = "";
 long    updateTaskId = -1;
 
-
-Firmware parseFirmwareVersion(const char *version) {
-
-  Firmware firmware;
-
-  char* versionCopy = strdup(version);
-  char* token = strtok(versionCopy, ".-");
-
-  while (token) {
-    if (isdigit(token[0])) {
-      if (firmware.major == 0)
-        firmware.major = atoi(token);
-      else if (firmware.minor == 0)
-        firmware.minor = atoi(token);
-      else if (firmware.patch == 0)
-        firmware.patch = atoi(token);
-    } else if (firmware.betaBuild == 0 && token[0] == 'b' && strcmp(token, "bin") != 0) {
-      firmware.isBeta = true;
-      firmware.betaBuild = atoi(token + 1); // Skip the 'b' character
-    }
-    token = strtok(NULL, ".-");
-  }
-
-  free(versionCopy);
-
-  return firmware;
-}
-
-void fillFwVersion(char* result, Firmware firmware) {
-  char patch[5] = "";
-  if (firmware.patch > 0) {
-    sprintf(patch, ".%d", firmware.patch);
-  }
-  char beta[5] = "";
-  if (firmware.isBeta) {
-    sprintf(beta, "-b%d", firmware.betaBuild);
-  }
-  sprintf(result, "%d.%d%s%s", firmware.major, firmware.minor, patch, beta);
-}
-
 void rebootDevice(int time = 2000) {
-  Serial.printf("reboot in: %s\n", time);
+  Serial.printf("reboot in %d seconds\n", time / 1000);
   delay(time);
   ESP.restart();
 }
@@ -147,9 +97,7 @@ void initSettings() {
 
   preferences.end();
 
-  currentFirmware = parseFirmwareVersion(VERSION);
-  fillFwVersion(currentFwVersion, currentFirmware);
-  Serial.printf("current firmware version: %s\n", currentFwVersion);
+  Serial.printf("current firmware version: %s\n", VERSION);
 }
 
 #if WIFI
@@ -252,6 +200,9 @@ void initUpdate() {
     Serial.println("update done");
     client_websocket.send("update:done");
     rebootDevice();
+  });
+  httpUpdate.onProgress([](int progress, int total) {
+    Serial.printf("update progress: %d%%\n", (progress * 100) / total);
   });
   httpUpdate.onError([](int error) {
     client_websocket.send(String("update:error_") + error);
@@ -387,8 +338,8 @@ void socketConnect() {
     Serial.printf("node: %s\n", nodeInfo);
     client_websocket.send(nodeInfo);
     char firmwareInfo[100];
-    sprintf(firmwareInfo, "firmware:%s", currentFwVersion);
-    Serial.printf("firmware: %s\n", firmwareInfo);
+    sprintf(firmwareInfo, "firmware:%s", VERSION);
+    Serial.printf("sent firmware info: %s\n", firmwareInfo);
     client_websocket.send(firmwareInfo);
     char chipIdInfo[25];
     sprintf(chipIdInfo, "chip_id:%s", chipID);
