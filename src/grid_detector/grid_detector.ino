@@ -100,6 +100,15 @@ void initSettings() {
   Serial.printf("current firmware version: %s\n", VERSION);
 }
 
+String connectMode() {
+  #if ETHERNET
+    return "ethernet";
+  #endif
+  #if WIFI
+    return "wifi";
+  #endif
+}
+
 #if WIFI
 char* getLocalIP() {
   strcpy(localIP, WiFi.localIP().toString().c_str());
@@ -344,16 +353,20 @@ void socketConnect() {
     Serial.printf("websocket connection time: %s ms\n", connectTime_c);
     char nodeInfo[100];
     sprintf(nodeInfo, "node:%s", settings.identifier);
-    Serial.printf("node: %s\n", nodeInfo);
+    Serial.printf("node: %s\n", settings.identifier);
     client_websocket.send(nodeInfo);
     char firmwareInfo[100];
     sprintf(firmwareInfo, "firmware:%s", VERSION);
-    Serial.printf("sent firmware info: %s\n", firmwareInfo);
+    Serial.printf("sent firmware info: %s\n", VERSION);
     client_websocket.send(firmwareInfo);
     char chipIdInfo[25];
     sprintf(chipIdInfo, "chip_id:%s", chipID);
-    Serial.printf("chip_id: %s\n", chipIdInfo);
+    Serial.printf("chip_id: %s\n", chipID);
     client_websocket.send(chipIdInfo);
+    char connectInfo[25];
+    sprintf(connectInfo, "connect_mode:%s", connectMode());
+    Serial.printf("connect_mode: %s\n", connectMode());
+    client_websocket.send(connectInfo);
 
     client_websocket.ping();
     websocketReconnect = false;

@@ -75,6 +75,7 @@ async def echo(websocket, path):
 
     client = shared_data.clients[f"{client_ip}_{client_port}"] = {
         "firmware": "",
+        "connect_mode": "unknown",
         "update_now": False,
         "chip_id": "unknown",
         "node": "unknown",
@@ -119,6 +120,9 @@ async def echo(websocket, path):
                     case "grid":
                         client["grid"] = data
                         logger.info(f"{client_ip}:{client_port}:{client_node} >>> {data}")
+                    case "connect_mode":
+                        client["connect_mode"] = data
+                        logger.info(f"{client_ip}:{client_port}:{client_node} >>> connect mode {data}")
                     case "update":
                         current_status = data
                         logger.info(f"{client_ip}:{client_port}:{client_node} >>> firmware update status: {current_status}")
