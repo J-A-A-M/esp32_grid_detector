@@ -3,6 +3,7 @@ import json
 import uvicorn
 import time
 import logging
+import wget
 
 from starlette.applications import Starlette
 from starlette.responses import JSONResponse, FileResponse, HTMLResponse
@@ -24,7 +25,10 @@ debug = os.environ.get("DEBUG", False)
 memcached_host = os.environ.get("MEMCACHED_HOST", "localhost")
 memcached_port = int(os.environ.get("MEMCACHED_PORT", 11211))
 
+shared_path = os.environ.get("SHARED_PATH") or "/shared_data"
 data_token = os.environ.get("DATA_TOKEN") or None
+
+web_server_port = os.environ.get("WEB_SERVER_PORT") or 8080
 
 mc = Client(memcached_host, memcached_port)
 
@@ -108,8 +112,12 @@ async def update_fw(request: Request):
         firmware_url = request_body["firmware_url"]
         firmware_version = request_body["firmware_version"]
         if firmware_url and firmware_version:
+            firmware_dir_path = f"{shared_path}/grid_detector_firmwares"
+            if not os.path.exists(firmware_dir_path):
+                os.makedirs(firmware_dir_path)
+            firmware_filename = wget.download(firmware_url, firmware_dir_path)
             firmware_info = {
-                "firmware_url": firmware_url,
+                "firmware_url": f"http://alerts.net.ua:{web_server_port}/grid_detector_fw/{firmware_filename}",
                 "firmware_version": firmware_version,
             }
             await mc.set(b"firmware_info", json.dumps(firmware_info).encode("utf-8"))
@@ -118,6 +126,9 @@ async def update_fw(request: Request):
             return JSONResponse({"status": "bed request"})
     else:
         return JSONResponse({})
+    
+async def download_fw(request):
+    return FileResponse(f'{shared_path}/grid_detector_firmwares/{request.path_params["filename"]}.bin')
 
 
 def get_local_time_formatted():
@@ -146,8 +157,9 @@ app = Starlette(
         Route("/data_{token}.json", data),
         Route("/nodes_{token}.json", nodes),
         Route("/update_fw_{token}", update_fw, methods=["POST"]),
+        Route("/grid_detector_fw/{filename}.bin", download_fw),
     ],
 )
 
 if __name__ == "__main__":
-    uvicorn.run(app, host="0.0.0.0", port=8080)
+    uvicorn.run(app, host="0.0.0.0", port=web_server_port)

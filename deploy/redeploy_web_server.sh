@@ -3,7 +3,7 @@
 # Default values
 DATA_TOKEN=""
 MEMCACHED_HOST=""
-PORT=8080
+PORT=32764
 
 # Check for arguments
 while [[ $# -gt 0 ]]; do
@@ -58,7 +58,7 @@ docker rm grid_detector_web_server || true
 
 # Deploying the new container
 echo "Deploying new container..."
-docker run --name grid_detector_web_server --restart unless-stopped -d -p "$PORT":8080 -v /shared_data:/shared_data --env DATA_TOKEN="$DATA_TOKEN" --env MEMCACHED_HOST="$MEMCACHED_HOST" grid_detector_web_server
+docker run --name grid_detector_web_server --restart unless-stopped -d -p "$PORT":"$PORT" -v /shared_data:/shared_data --env DATA_TOKEN="$DATA_TOKEN" --env MEMCACHED_HOST="$MEMCACHED_HOST" --env WEB_SERVER_PORT="$PORT" grid_detector_web_server
 
 echo "Container deployed successfully!"
 
