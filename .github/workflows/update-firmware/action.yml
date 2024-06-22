@@ -1,8 +1,11 @@
 name: 'Firmware Update Action'
 description: 'Update firmware version and url on the server'
 inputs:
-  firmware-bin-url:
-    description: 'Url to the firmware binary'
+  firmware-wifi-url:
+    description: 'Url to the firmware WiFi build'
+    default: ''
+  firmware-eth-url:
+    description: 'Url to the firmware Ethernet build'
     default: ''
   firmware-version:
     description: 'Firmware version'
@@ -14,11 +17,12 @@ runs:
   using: 'composite'
   steps:
     - name: Update firmware on the server
-      if: ${{ inputs.firmware-bin-url != '' && inputs.firmware-version != '' && inputs.web-server-url != '' }}
+      if: ${{ inputs.firmware-wifi-url != '' && inputs.firmware-eth-url != '' && inputs.firmware-version != '' && inputs.web-server-url != '' }}
       shell: bash
       run: |
         echo "Updating firmware version to ${{ inputs.firmware-version }}"
-        echo "Updating firmware binary url to ${{ inputs.firmware-bin-url }}"
-        # Update firmware version and url on the server
-        curl -X POST -H "Content-Type: application/json" -d '{"firmware_version": "${{ inputs.firmware-version }}", "firmware_url": "${{ inputs.firmware-bin-url }}"}' ${{ inputs.web-server-url }}
+        echo "Updating firmware WiFi binary url to ${{ inputs.firmware-wifi-url }}"
+        echo "Updating firmware Ethernet binary url to ${{ inputs.firmware-eth-url }}"
+        # Update firmware version and urls on the server
+        curl -X POST -H "Content-Type: application/json" -d '{"firmware_version": "${{ inputs.firmware-version }}", "firmware_wifi_url": "${{ inputs.firmware-wifi-url }}", "firmware_eth_url": "${{ inputs.firmware-eth-url }}"}' ${{ inputs.web-server-url }}
 

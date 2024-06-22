@@ -109,16 +109,20 @@ async def nodes(request):
 async def update_fw(request: Request):
     if request.path_params["token"] == data_token:
         request_body = await request.json()
-        firmware_url = request_body["firmware_url"]
+        firmware_wifi_url = request_body["firmware_wifi_url"]
+        firmware_eth_url = request_body["firmware_eth_url"]
         firmware_version = request_body["firmware_version"]
-        if firmware_url and firmware_version:
+        if firmware_wifi_url and firmware_eth_url and firmware_version:
             firmware_dir_path = f"{shared_path}/grid_detector_firmwares"
             if not os.path.exists(firmware_dir_path):
                 os.makedirs(firmware_dir_path)
-            firmware_filename = firmware_url.split("/")[-1]
-            wget.download(firmware_url, firmware_dir_path)
+            wifi_firmware_filename = firmware_wifi_url.split("/")[-1]
+            eth_firmware_filename = firmware_eth_url.split("/")[-1]
+            wget.download(firmware_wifi_url, firmware_dir_path)
+            wget.download(firmware_eth_url, firmware_dir_path)
             firmware_info = {
-                "firmware_url": f"http://alerts.net.ua:{web_server_port}/grid_detector_fw/{firmware_filename}",
+                "firmware_wifi_url": f"http://alerts.net.ua:{web_server_port}/grid_detector_fw/{wifi_firmware_filename}",
+                "firmware_eth_url": f"http://alerts.net.ua:{web_server_port}/grid_detector_fw/{eth_firmware_filename}",
                 "firmware_version": firmware_version,
             }
             await mc.set(b"firmware_info", json.dumps(firmware_info).encode("utf-8"))

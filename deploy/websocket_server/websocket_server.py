@@ -36,26 +36,33 @@ empty_node = {
 class SharedData:
     def __init__(self):
         self.clients = {}
-        self.firmware_url = ""
+        self.wifi_firmware_url = ""
+        self.eth_firmware_url = ""
         self.firmware_version = ""
 
 
 shared_data = SharedData()
 
 
-async def loop_data(websocket, shared_data):
+async def loop_data(websocket, shared_data: SharedData):
     client_ip, client_port = websocket.remote_address
 
     while True:
         client = shared_data.clients[f"{client_ip}_{client_port}"]
         client_node = client["node"]
+        client_connect_mode = client["connect_mode"]
         current_firmware = shared_data.firmware_version
-        current_firmware_url = shared_data.firmware_url
+        current_firmware_wifi_url = shared_data.wifi_firmware_url
+        current_firmware_eth_url = shared_data.eth_firmware_url
         client_firmware = client["firmware"]
-        if (current_firmware and current_firmware_url and client_firmware and client_firmware != current_firmware and not client["update_now"]):
+        firmware_info_available = current_firmware and current_firmware_wifi_url and current_firmware_eth_url
+        client_update_required = client_firmware != "unknown" and client_firmware != current_firmware
+        connect_mode_available = client_connect_mode in ["wifi", "eth"]
+        if (firmware_info_available and client_update_required and connect_mode_available and not client["update_now"]):
             logger.info(f"{client_ip}:{client_port}:{client_node} !!!  new firmware ({current_firmware})")
             client["update_now"] = True
-            payload = '{"payload":"update","url":"%s","delay":%d}' % (current_firmware_url, random.randint(1, 100))
+            new_firmware_url = current_firmware_wifi_url if client_connect_mode == "wifi" else current_firmware_eth_url
+            payload = '{"payload":"update","url":"%s","delay":%d}' % (new_firmware_url, random.randint(1, 100))
             await websocket.send(payload)
             logger.info(f"{client_ip}:{client_port}:{client_node} <<< send firmware update: ({payload})")
         try:
@@ -74,7 +81,7 @@ async def echo(websocket, path):
 
 
     client = shared_data.clients[f"{client_ip}_{client_port}"] = {
-        "firmware": "",
+        "firmware": "unknown",
         "connect_mode": "unknown",
         "update_now": False,
         "chip_id": "unknown",
@@ -153,16 +160,16 @@ async def update_shared_data(shared_data, mc):
             logger.error(f"Error in print_clients: {e}")
 
 async def check_firmware(mc):
-    await asyncio.sleep(10)
     while True:
         try:
             logger.debug("check_firmware")
             websoket_key = b"firmware_info"
             firmware_info = await mc.get(websoket_key)
             if firmware_info:
-                shared_data.firmware_url = json.loads(firmware_info.decode("utf-8"))["firmware_url"]
+                shared_data.wifi_firmware_url = json.loads(firmware_info.decode("utf-8"))["wifi_firmware_url"]
+                shared_data.eth_firmware_url = json.loads(firmware_info.decode("utf-8"))["eth_firmware_url"]
                 shared_data.firmware_version = json.loads(firmware_info.decode("utf-8"))["firmware_version"]
-            await asyncio.sleep(memcache_fetch_interval)
+            await asyncio.sleep(memcache_fetch_interval + 10)
         except Exception as e:
             logger.error(f"Error in print_clients: {e}")
 

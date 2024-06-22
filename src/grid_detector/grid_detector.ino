@@ -1,5 +1,5 @@
-#define ETHERNET 1
-#define WIFI 0
+#define ETHERNET 0
+#define WIFI 1
 #define GRID 1
 
 const PROGMEM char* VERSION = "0.0.1";

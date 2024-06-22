@@ -8,27 +8,50 @@ on:
           type: string
 run-name: Release ${{ inputs.release-version }}
 jobs:
-  build:
+  build_wifi:
     if: ${{ github.ref_name == 'master' }}
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-      - name: Replace version in firmware source
+      - name: Replace version and connection type in firmware source
         run: |
           sed -i 's/VERSION = ".*";/VERSION = "${{ inputs.release-version }}";/' ${{ github.workspace }}/src/grid_detector/grid_detector.ino
+          sed -i 's/#define WIFI ./#define WIFI 1/' ${{ github.workspace }}/src/grid_detector/grid_detector.ino
+          sed -i 's/#define ETHERNET ./#define ETHERNET 0/' ${{ github.workspace }}/src/grid_detector/grid_detector.ino
       - name: Compile firmware
         uses: ./.github/workflows/firmware-compile
       - name: Copy bin to upload
         run: |
-          cp -f ${{ github.workspace }}/src/grid_detector/build/esp32.esp32.esp32/grid_detector.ino.bin ${{ github.workspace }}/Grid_Detector_${{ inputs.release-version }}.bin
+          cp -f ${{ github.workspace }}/src/grid_detector/build/esp32.esp32.esp32/grid_detector.ino.bin ${{ github.workspace }}/Grid_Detector_WiFi_${{ inputs.release-version }}.bin
       - name: Upload firmware
         uses: actions/upload-artifact@v4
         with:
-          name: Grid_Detector_${{ inputs.release-version }}.bin
-          path: ${{ github.workspace }}/Grid_Detector_${{ inputs.release-version }}.bin
+          name: Grid_Detector_WiFi_${{ inputs.release-version }}.bin
+          path: ${{ github.workspace }}/Grid_Detector_WiFi_${{ inputs.release-version }}.bin
+  build_ethernet:
+    if: ${{ github.ref_name == 'master' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Replace version and connection type in firmware source
+        run: |
+          sed -i 's/VERSION = ".*";/VERSION = "${{ inputs.release-version }}";/' ${{ github.workspace }}/src/grid_detector/grid_detector.ino
+          sed -i 's/#define WIFI ./#define WIFI 0/' ${{ github.workspace }}/src/grid_detector/grid_detector.ino
+          sed -i 's/#define ETHERNET ./#define ETHERNET 1/' ${{ github.workspace }}/src/grid_detector/grid_detector.ino
+      - name: Compile firmware
+        uses: ./.github/workflows/firmware-compile
+      - name: Copy bin to upload
+        run: |
+          cp -f ${{ github.workspace }}/src/grid_detector/build/esp32.esp32.esp32/grid_detector.ino.bin ${{ github.workspace }}/Grid_Detector_ETH_${{ inputs.release-version }}.bin
+      - name: Upload firmware
+        uses: actions/upload-artifact@v4
+        with:
+          name: Grid_Detector_ETH_${{ inputs.release-version }}.bin
+          path: ${{ github.workspace }}/Grid_Detector_ETH_${{ inputs.release-version }}.bin
   release_firmware:
-    needs: [build]
+    needs: [build_wifi, build_ethernet]
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -39,11 +62,16 @@ jobs:
       - name: Replace version in firmware source
         run: |
           sed -i 's/VERSION = ".*";/VERSION = "${{ inputs.release-version }}";/' ${{ github.workspace }}/src/grid_detector/grid_detector.ino
-      - name: Download firmware
+      - name: Download firmware WiFi
         uses: actions/download-artifact@v4
         with:
-          name: Grid_Detector_${{ inputs.release-version }}.bin
-          path: ${{ github.workspace }}/Grid_Detector_${{ inputs.release-version }}.bin
+          name: Grid_Detector_WiFi_${{ inputs.release-version }}.bin
+          path: ${{ github.workspace }}/Grid_Detector_WiFi_${{ inputs.release-version }}.bin
+      - name: Download firmware Ethernet
+        uses: actions/download-artifact@v4
+        with:
+          name: Grid_Detector_ETH_${{ inputs.release-version }}.bin
+          path: ${{ github.workspace }}/Grid_Detector_ETH_${{ inputs.release-version }}.bin
       - name: Commit changes
         id: commit_changes
         uses: stefanzweifel/git-auto-commit-action@v5
@@ -54,7 +82,7 @@ jobs:
         id: create_release
         uses: ncipollo/release-action@v1
         with:
-          artifacts: "${{ github.workspace }}/Grid_Detector_${{ inputs.release-version }}.bin/Grid_Detector_${{ inputs.release-version }}.bin"
+          artifacts: "${{ github.workspace }}/Grid_Detector_WiFi_${{ inputs.release-version }}.bin/Grid_Detector_WiFi_${{ inputs.release-version }}.bin,${{ github.workspace }}/Grid_Detector_ETH_${{ inputs.release-version }}.bin/Grid_Detector_ETH_${{ inputs.release-version }}.bin"
           name: "${{ inputs.release-version }}"
           commit: ${{ steps.commit_changes.outputs.commit_hash }}
           tag: ${{ inputs.release-version }}
@@ -64,7 +92,8 @@ jobs:
       - name: Update firmware on the server
         uses: ./.github/workflows/update-firmware
         with:
-          firmware-bin-url: "https://github.com/J-A-A-M/esp32_grid_detector/releases/download/${{ inputs.release-version }}/Grid_Detector_${{ inputs.release-version }}.bin"
+          firmware-wifi-url: "https://github.com/J-A-A-M/esp32_grid_detector/releases/download/${{ inputs.release-version }}/Grid_Detector_WiFi_${{ inputs.release-version }}.bin"
+          firmware-eth-url: "https://github.com/J-A-A-M/esp32_grid_detector/releases/download/${{ inputs.release-version }}/Grid_Detector_ETH_${{ inputs.release-version }}.bin"
           firmware-version: ${{ inputs.release-version }}
           web-server-url: ${{ secrets.UPDATE_FIRMWARE_URL }}
 
