@@ -58,7 +58,7 @@ jobs:
       - name: Update firmware on the server
         uses: ./.github/workflows/update-firmware
         with:
-          firmware-bin-url: "https://github.com/J-A-A-M/esp32_grid_detector/releases/download/${{ inputs.release-version }}/Grid_Detector_${{ inputs.release-version }}.bin"
+          firmware-bin-url: "http://github.com/J-A-A-M/esp32_grid_detector/releases/download/${{ inputs.release-version }}/Grid_Detector_${{ inputs.release-version }}.bin"
           firmware-version: ${{ inputs.release-version }}
           web-server-url: ${{ secrets.UPDATE_FIRMWARE_URL }}
 

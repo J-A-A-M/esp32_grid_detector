@@ -266,8 +266,8 @@ void updateFw() {
     Serial.println("no firmware url");
     return;
   }
-  Serial.printf("Firmware url: %s\n", newFirmwareUrl);
-  t_httpUpdate_return fwRet = httpUpdate.update(client, newFirmwareUrl, VERSION);
+  Serial.printf("Firmware url: %s\n", newFirmwareUrl.c_str());
+  t_httpUpdate_return fwRet = httpUpdate.update(client, newFirmwareUrl.c_str(), VERSION);
   handleUpdateStatus(fwRet);
 }
 
@@ -404,8 +404,8 @@ void socketConnect() {
 }
 
 void onMessageCallback(WebsocketsMessage message) {
-  Serial.printf("got message: %s\n", message.data());
   JsonDocument data = parseJson(message.data().c_str());
+  Serial.printf("got message: %s\n", message.data().c_str());
   String payload = data["payload"];
   if (!payload.isEmpty()) {
     if (payload == "ping") {
@@ -414,11 +414,16 @@ void onMessageCallback(WebsocketsMessage message) {
     } else if (payload == "update") {
       Serial.println("update firmware");
       unsigned long delayTime = int(data["delay"]) * 1000;
+      Serial.print("delay time: ");
+      Serial.println(delayTime);
       newFirmwareUrl = data["url"].as<String>();
+      Serial.print("new firmware url: ");
+      Serial.println(newFirmwareUrl.c_str());
       if (updateTaskId != -1) {
         asyncEngine.clearInterval(updateTaskId);
       }
       updateTaskId = asyncEngine.setTimeout(updateFw, delayTime);
+      Serial.printf("Scheduled update task with id: %d in %d seconds\n", updateTaskId, delayTime/1000);
     } else if (payload == "update_cancel") {
       Serial.println("update cancel");
       if (updateTaskId != -1) {
