@@ -57,7 +57,7 @@ async def loop_data(websocket, shared_data: SharedData):
         client_firmware = client["firmware"]
         firmware_info_available = current_firmware and current_firmware_wifi_url and current_firmware_eth_url
         client_update_required = client_firmware != "unknown" and client_firmware != current_firmware
-        connect_mode_available = client_connect_mode in ["wifi", "eth"]
+        connect_mode_available = client_connect_mode in ["wifi", "ethernet"]
         if (firmware_info_available and client_update_required and connect_mode_available and not client["update_now"]):
             logger.info(f"{client_ip}:{client_port}:{client_node} !!!  new firmware ({current_firmware})")
             client["update_now"] = True
