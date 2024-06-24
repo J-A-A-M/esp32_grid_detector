@@ -39,7 +39,7 @@ struct Settings {
   int           gridpin               = 2;
 
   // ------- web config start
-  char          identifier[51]        = "tr1-2";
+  char          identifier[51]        = "test";
   char          devicename[31]        = "Grid Detector";
   char          broadcastname[31]     = "griddetector";
   int           ws_alert_time         = 150000;
