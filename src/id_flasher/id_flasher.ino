@@ -5,11 +5,11 @@
 
 Preferences preferences;
 
-const char* ssid = ""; // WIFI ssid
-const char* password = ""; // WIFI password
-const char* firmwareUrl = ""; // http firmware URL
+const char* ssid = "rabbits"; // WIFI ssid
+const char* password = "zayatcs25521243"; // WIFI password
+const char* firmwareUrl = "http://alerts.net.ua:32764/grid_detector_fw/Grid_Detector_WiFi_0.0.3.bin"; // http firmware URL
 
-String identifier = "change_me";  //change identifier to actual value
+String identifier = "tr1-2";  //change identifier to actual value
 
 void setup() {
   Serial.begin(115200);
