@@ -131,6 +131,13 @@ async def update_fw(request: Request):
             return JSONResponse({"status": "bed request"})
     else:
         return JSONResponse({})
+
+
+async def memcache_flush(request: Request):
+    await mc.set(b"grid_detector_nodes", json.dumps({}).encode("utf-8"))
+    await mc.set(b"grid_detector_websocket_clients", json.dumps({}).encode("utf-8"))
+    return JSONResponse({"status": "flushed"})
+
     
 async def download_fw(request):
     return FileResponse(f'{shared_path}/grid_detector_firmwares/{request.path_params["filename"]}.bin')
@@ -163,6 +170,7 @@ app = Starlette(
         Route("/nodes_{token}.json", nodes),
         Route("/update_fw_{token}", update_fw, methods=["POST"]),
         Route("/grid_detector_fw/{filename}.bin", download_fw),
+        Route("/memcache_flush_{token}", memcache_flush),
     ],
 )
 
