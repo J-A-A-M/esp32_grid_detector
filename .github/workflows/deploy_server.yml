@@ -32,7 +32,7 @@ jobs:
                 git fetch --all
                 git switch ${{ github.ref_name }}
                 git pull
-                bash redeploy_websocket_server.sh -m ${{ secrets.MEMCACHED_HOST }}
+                bash redeploy_websocket_server.sh -m ${{ secrets.MEMCACHED_HOST }} -u ${{ secrets.ENDPOINT_URL }}
           - name: Redeploy Web Server
             if: ${{ inputs.redeploy_web_server || inputs.redeploy_all }}
             uses: appleboy/ssh-action@v1.0.3

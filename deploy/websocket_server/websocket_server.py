@@ -4,6 +4,8 @@ import logging
 import os
 import json
 import random
+import aiohttp
+
 from aiomcache import Client
 from functools import partial
 from datetime import datetime, timezone, timedelta
@@ -12,6 +14,8 @@ debug_level = os.environ.get("DEBUG_LEVEL") or "DEBUG"
 websocket_port = os.environ.get("WEBSOCKET_PORT") or 39447
 ping_interval = int(os.environ.get("PING_INTERVAL", 20))
 memcache_fetch_interval = int(os.environ.get("MEMCACHE_FETCH_INTERVAL", 1))
+environment = os.environ.get("ENVIRONMENT") or "TEST"
+endpoint_url = os.environ.get("ENDPOINT_URL") or "http://localhost"
 
 logging.basicConfig(level=debug_level, format="%(asctime)s %(levelname)s : %(message)s")
 logger = logging.getLogger(__name__)
@@ -20,11 +24,18 @@ logger = logging.getLogger(__name__)
 memcached_host = os.environ.get("MEMCACHED_HOST") or "localhost"
 mc = Client(memcached_host, 11211)
 
-nodes_list = {
+nodes_list = [
     "t4a-9",
     "tr1-2",
     "rk2a-4"
-}
+    "rk4",
+    "tr5"
+]
+
+locations_list = [
+    1, 4, 2, 4, 5
+]
+
 
 empty_node = {
     "grid": "unknown",
@@ -186,6 +197,20 @@ async def print_clients(shared_data, mc):
             logger.error(f"Error in print_clients: {e}")
 
 
+async def send_grid_status(status, location, test):
+    data = {
+        "blackout": status,
+        "location": location,
+        "test": test
+    }
+    async with aiohttp.ClientSession() as session:
+        async with session.post(endpoint_url, json=data) as response:
+            if response.status == 200:
+                logger.info(f"location {location} blackout status {status}")
+            else:
+                logger.error(f"location {location} blackout status failed: {response.status}", )
+
+
 async def update_grid_status(shared_data, mc):
     await asyncio.sleep(10)
     logger.debug("grid_status_start")
@@ -195,7 +220,6 @@ async def update_grid_status(shared_data, mc):
         nodes_status = json.loads(nodes_status_memcached.decode("utf-8"))
     else:
         nodes_status = {}
-
 
     while True:
         try:
@@ -220,9 +244,23 @@ async def update_grid_status(shared_data, mc):
                 else:
                     status_change_time = nodes_status[node]['status_change_time']
 
-                if (current_state['grid'] in ['online','offline']) and (status in ['online','offline']) and current_state['grid'] != status:
+                if (current_state['grid'] in ['online','offline']) and (status in ['online', 'offline']) and current_state['grid'] != status:
+                    node_index = nodes_list.index(node)
+                    location = locations_list[node_index]
+
                     grid_change_time = datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%S+00:00")
                     logger.info(f"Node {node} grid change: {current_state['grid']} >>> {status}")
+                    match environment:
+                        case 'TEST':
+                            test = True
+                        case 'PROD':
+                            test = False
+                    match status:
+                        case 'online':
+                            status = False
+                        case 'offline':
+                            status = True
+                    await send_grid_status(status, location, test)
                 else:
                     grid_change_time = nodes_status[node]['grid_change_time']
 
