@@ -27,7 +27,7 @@ mc = Client(memcached_host, 11211)
 nodes_list = [
     "t4a-9",
     "tr1-2",
-    "rk2a-4"
+    "rk2a-4",
     "rk4",
     "tr5"
 ]
