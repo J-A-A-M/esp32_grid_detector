@@ -3,7 +3,7 @@ import json
 import uvicorn
 import time
 import logging
-import wget
+
 
 from starlette.applications import Starlette
 from starlette.responses import JSONResponse, FileResponse, HTMLResponse
