@@ -110,10 +110,6 @@ async def nodes(request):
         else:
             nodes = {}
 
-        for node_id, node_data in nodes.items():
-            node_time_diff = calculate_time_difference(node_data["grid_change_time"], local_time)
-            node_data["grid_last_changed"] = node_time_diff
-
         return JSONResponse(nodes)
     else:
         return JSONResponse({})
