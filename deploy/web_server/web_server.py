@@ -3,6 +3,7 @@ import json
 import uvicorn
 import time
 import logging
+import wget
 
 
 from starlette.applications import Starlette
@@ -101,11 +102,23 @@ async def data(request):
 
 async def nodes(request):
     if request.path_params["token"] == data_token:
+        local_time = get_local_time_formatted()
+
         data_full = await mc.get(b"grid_detector_nodes")
-        return JSONResponse(json.loads(data_full.decode("utf-8")))
+        if data_full:
+            nodes = json.loads(data_full.decode("utf-8"))
+        else:
+            nodes = {}
+
+        for node_id, node_data in nodes.items():
+            node_time_diff = calculate_time_difference(node_data["grid_change_time"], local_time)
+            node_data["grid_last_changed"] = node_time_diff
+
+        return JSONResponse(nodes)
     else:
         return JSONResponse({})
-    
+
+
 async def update_fw(request: Request):
     if request.path_params["token"] == data_token:
         request_body = await request.json()
