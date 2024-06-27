@@ -3,7 +3,7 @@
 #define GRID 1
 #define ARDUINO_OTA_ENABLED 1
 
-const PROGMEM char* VERSION = "0.0.3";
+const PROGMEM char* VERSION = "0.0.4";
 
 #include <Preferences.h>
 #include <ArduinoWebsockets.h>
