@@ -1,6 +1,7 @@
 #define ETHERNET 0
 #define WIFI 1
 #define GRID 1
+#define ARDUINO_OTA_ENABLED 1
 
 const PROGMEM char* VERSION = "0.0.3";
 
@@ -10,6 +11,9 @@ const PROGMEM char* VERSION = "0.0.3";
 #include <map>
 #include <ArduinoJson.h>
 #include <HTTPUpdate.h>
+#if ARDUINO_OTA_ENABLED
+#include <ArduinoOTA.h>
+#endif
 
 #define INIT            0x3
 
@@ -46,7 +50,6 @@ struct Settings {
   int           ws_reboot_time        = 300000;
   char          serverhost[31]        = "alerts.net.ua";
   int           websocket_port        = 39447;
-  int           updateport            = 9090;
   int           reaction_time         = 2000;
   // ------- web config end
 };
@@ -70,7 +73,7 @@ String  newFirmwareUrl = "";
 long    updateTaskId = -1;
 
 void rebootDevice(int time = 2000) {
-  Serial.printf("reboot in %d seconds\n", time / 1000);
+  Serial.printf("Reboot in %d seconds\n", time / 1000);
   delay(time);
   ESP.restart();
 }
@@ -82,7 +85,7 @@ void initChipID() {
 }
 
 void initSettings() {
-  Serial.print("init settings\n");
+  Serial.print("Init settings\n");
   preferences.begin("storage", true);
 
   preferences.getString("dn", settings.devicename, sizeof(settings.devicename));
@@ -90,14 +93,15 @@ void initSettings() {
   preferences.getString("host", settings.serverhost, sizeof(settings.serverhost));
   preferences.getString("id", settings.identifier, sizeof(settings.identifier));
   settings.websocket_port   = preferences.getInt("wsp", settings.websocket_port);
-  settings.updateport       = preferences.getInt("upport", settings.updateport);
   settings.ws_alert_time    = preferences.getInt("wsat", settings.ws_alert_time);
   settings.ws_reboot_time   = preferences.getInt("wsrt", settings.ws_reboot_time);
   settings.reaction_time    = preferences.getInt("rt", settings.reaction_time);
 
   preferences.end();
 
-  Serial.printf("current firmware version: %s\n", VERSION);
+  Serial.printf("Node inited: %s\n", settings.identifier);
+  Serial.printf("Current firmware version: %s\n", VERSION);
+
 }
 
 String connectMode() {
@@ -117,18 +121,18 @@ char* getLocalIP() {
 
 void apCallback(WiFiManager* wifiManager) {
   const char* message = wifiManager->getConfigPortalSSID().c_str();
-  Serial.printf("connect to: %s\n", message);
+  Serial.printf("Connect to: %s\n", message);
   WiFi.onEvent(Events);
 }
 
 void saveConfigCallback() {
-  Serial.printf("saved AP: %s\n", wm.getWiFiSSID(true).c_str());
+  Serial.printf("Saved AP: %s\n", wm.getWiFiSSID(true).c_str());
   delay(2000);
   rebootDevice();
 }
 
 void initWifi() {
-  Serial.print("init wifi\n");
+  Serial.print("Init WIFI\n");
   WiFi.mode(WIFI_STA); 
 
   wm.setHostname(settings.broadcastname);
@@ -139,16 +143,16 @@ void initWifi() {
   wm.setAPCallback(apCallback);
   wm.setSaveConfigCallback(saveConfigCallback);
   wm.setConfigPortalTimeout(180);
-  Serial.printf("connecting to: %s\n", wm.getWiFiSSID(true).c_str());
+  Serial.printf("Connecting to: %s\n", wm.getWiFiSSID(true).c_str());
   if (!wm.autoConnect(settings.apssid)) {
-    Serial.print("reboot\n");
+    Serial.print("Reboot\n");
     rebootDevice(5000);
     return;
   }
-  Serial.print("wifi initialized with DHCP\n");
+  Serial.print("WIFI initialized with DHCP\n");
   wm.setHttpPort(80);
   wm.startWebPortal();
-  Serial.printf("ip address: %s\n", getLocalIP());
+  Serial.printf("IP address: %s\n", getLocalIP());
   connected = true;
 }
 #endif
@@ -158,7 +162,7 @@ void Events(WiFiEvent_t event) {
     case ARDUINO_EVENT_WIFI_AP_STACONNECTED: {
       char softApIp[16];
       strcpy(softApIp, WiFi.softAPIP().toString().c_str());
-      Serial.printf("set in browser: %s\n", softApIp);
+      Serial.printf("Set in browser: %s\n", softApIp);
       WiFi.removeEvent(Events);
       break;
     }
@@ -208,23 +212,40 @@ void initEthernet() {
 }
 #endif
 
-void initUpdate() {
-  Serial.println("init update");
+void initUpdates() {
+  Serial.println("Init update");
+  #if ARDUINO_OTA_ENABLED
+  ArduinoOTA.onStart([]() {
+    Serial.println("OTA update start");
+  });
+  ArduinoOTA.onEnd([]() {
+    Serial.println("OTA update done");
+    rebootDevice();
+  });
+  ArduinoOTA.onProgress([](int progress, int total) {
+    Serial.printf("OTA update progress: %d%%\n", (progress * 100) / total);
+  });
+  ArduinoOTA.onError([](int error) {
+    Serial.printf("OTA update error: %d\n", error);
+  });
+  ArduinoOTA.begin();
+  #endif
+
   httpUpdate.onStart([]() {
-    Serial.println("update start");
+    Serial.println("HTTP update start");
     client_websocket.send("update:started");
   });
   httpUpdate.onEnd([]() {
-    Serial.println("update done");
+    Serial.println("HTTP update done");
     client_websocket.send("update:done");
     rebootDevice();
   });
   httpUpdate.onProgress([](int progress, int total) {
-    Serial.printf("update progress: %d%%\n", (progress * 100) / total);
+    Serial.printf("HTTP update progress: %d%%\n", (progress * 100) / total);
   });
   httpUpdate.onError([](int error) {
     client_websocket.send(String("update:error_") + error);
-    Serial.printf("error: %d\n", error);
+    Serial.printf("HTTP update error: %d\n", error);
     updateTaskId = -1;
     newFirmwareUrl.clear();
   });
@@ -232,7 +253,7 @@ void initUpdate() {
 
 void updateFw() {
   if (newFirmwareUrl.isEmpty()) {
-    Serial.println("no firmware url");
+    Serial.println("No firmware url");
     return;
   }
   Serial.printf("Firmware url: %s\n", newFirmwareUrl.c_str());
@@ -263,26 +284,26 @@ void gridDetect() {
     pressedTime = millis();
     gridOnlineNotify = true;
     gridOfflineNotify = false;
-    Serial.print("on\n");
+    Serial.print("Grid on\n");
   }
   if (lastState == LOW && currentState == HIGH) {
     pressedTime = millis();
     gridOnlineNotify = false;
     gridOfflineNotify = true;
-    Serial.print("off\n");
+    Serial.print("Grid off\n");
   }
   if (lastState == INIT) {
     pressedTime = millis();
-    Serial.print("grid init\n");
+    Serial.print("Grid init\n");
     switch (currentState) {
       case HIGH: {
-        Serial.print("init off\n");
+        Serial.print("Grid init off\n");
         gridOnlineNotify = false;
         gridOfflineNotify = true;
         break;
       }
       case LOW: {
-        Serial.print("init on\n");
+        Serial.print("Grid init on\n");
         gridOnlineNotify = true;
         gridOfflineNotify = false;
         break;
@@ -293,16 +314,16 @@ void gridDetect() {
   long changeDuration = millis() - pressedTime;
 
   if (gridOnlineNotify && changeDuration > settings.reaction_time && currentState == LOW && gridStatus != HIGH) {
-    Serial.print("grid ONLINE\n");
     gridOnlineNotify = false;
     gridStatus = HIGH;
     client_websocket.send("grid:online");
+    Serial.print("Grid ONLINE event sended\n");
   }
   if (gridOfflineNotify && changeDuration > settings.reaction_time && currentState == HIGH && gridStatus != LOW) {
-    Serial.print("grid OFFLINE\n");
     gridOfflineNotify = false;
     gridStatus = LOW;
     client_websocket.send("grid:offline");
+    Serial.print("grid OFFLINE event sended\n");
   }
 
   lastState = currentState;
@@ -317,7 +338,7 @@ void websocketProcess() {
     rebootDevice(3000);
   }
   if (!client_websocket.available() or websocketReconnect) {
-    Serial.print("reconnecting...\n");
+    Serial.print("Reconnecting...\n");
     socketConnect();
     if (client_websocket.available()) {
       lastState = INIT;
@@ -330,7 +351,7 @@ JsonDocument parseJson(const char* payload) {
   JsonDocument doc;
   DeserializationError error = deserializeJson(doc, payload);
   if (error) {
-    Serial.printf("deserialization error: $s\n", error.f_str());
+    Serial.printf("Deserialization error: $s\n", error.f_str());
     return doc;
   } else {
     return doc;
@@ -338,59 +359,59 @@ JsonDocument parseJson(const char* payload) {
 }
 
 void socketConnect() {
-  Serial.print("websocket connection start\n");
+  Serial.print("Websocket connection start\n");
   client_websocket.onMessage(onMessageCallback);
   client_websocket.onEvent(onEventsCallback);
   long startTime = millis();
   char webSocketUrl[100];
   sprintf(webSocketUrl, "ws://%s:%d/grid_detector", settings.serverhost, settings.websocket_port);
-  Serial.printf("websoket url: %s\n", webSocketUrl);
+  Serial.printf("Websoket URL: %s\n", webSocketUrl);
   client_websocket.connect(webSocketUrl);
   if (client_websocket.available()) {
     long connectTime = millis() - startTime;
     char connectTime_c[12];
     sprintf(connectTime_c, "%ld", connectTime);
-    Serial.printf("websocket connection time: %s ms\n", connectTime_c);
+    Serial.printf("Websocket connection time: %s ms\n", connectTime_c);
     char nodeInfo[100];
     sprintf(nodeInfo, "node:%s", settings.identifier);
-    Serial.printf("node: %s\n", settings.identifier);
+    Serial.printf("Sent node info: %s\n", settings.identifier);
     client_websocket.send(nodeInfo);
     char firmwareInfo[100];
     sprintf(firmwareInfo, "firmware:%s", VERSION);
-    Serial.printf("sent firmware info: %s\n", VERSION);
+    Serial.printf("Sent firmware info: %s\n", VERSION);
     client_websocket.send(firmwareInfo);
     char chipIdInfo[25];
     sprintf(chipIdInfo, "chip_id:%s", chipID);
-    Serial.printf("chip_id: %s\n", chipID);
+    Serial.printf("Sent chipID info: %s\n", chipID);
     client_websocket.send(chipIdInfo);
     char connectInfo[25];
     sprintf(connectInfo, "connect_mode:%s", connectMode());
-    Serial.printf("connect_mode: %s\n", connectMode());
+    Serial.printf("Sent connect_mode info: %s\n", connectMode());
     client_websocket.send(connectInfo);
 
     client_websocket.ping();
     websocketReconnect = false;
-    Serial.print("websocket connected\n");
+    Serial.print("Websocket connected\n");
   } else {
-    Serial.print("websocket not connected\n");
+    Serial.print("Websocket not connected\n");
   }
 }
 
 void onMessageCallback(WebsocketsMessage message) {
   JsonDocument data = parseJson(message.data().c_str());
-  Serial.printf("got message: %s\n", message.data().c_str());
+  Serial.printf("Got message: %s\n", message.data().c_str());
   String payload = data["payload"];
   if (!payload.isEmpty()) {
     if (payload == "ping") {
-      Serial.print("heartbeat from server\n");
+      Serial.print("Heartbeat from server\n");
       websocketLastPingTime = millis();
     } else if (payload == "update") {
-      Serial.println("update firmware");
+      Serial.println("Update firmware");
       unsigned long delayTime = int(data["delay"]) * 1000;
-      Serial.print("delay time: ");
+      Serial.print("Delay time: ");
       Serial.println(delayTime);
       newFirmwareUrl = data["url"].as<String>();
-      Serial.print("new firmware url: ");
+      Serial.print("New firmware url: ");
       Serial.println(newFirmwareUrl.c_str());
       if (updateTaskId != -1) {
         asyncEngine.clearInterval(updateTaskId);
@@ -398,13 +419,13 @@ void onMessageCallback(WebsocketsMessage message) {
       updateTaskId = asyncEngine.setTimeout(updateFw, delayTime);
       Serial.printf("Scheduled update task with id: %d in %d seconds\n", updateTaskId, delayTime/1000);
     } else if (payload == "update_cancel") {
-      Serial.println("update cancel");
+      Serial.println("Update cancel");
       if (updateTaskId != -1) {
         asyncEngine.clearInterval(updateTaskId);
       }
       client_websocket.send("update:canceled");
     } else if (payload == "reboot") {
-      Serial.println("rebooting...");
+      Serial.println("Rebooting...");
       rebootDevice(3000);
     }
   }
@@ -413,19 +434,19 @@ void onMessageCallback(WebsocketsMessage message) {
 void onEventsCallback(WebsocketsEvent event, String data) {
   if (event == WebsocketsEvent::ConnectionOpened) {
     apiConnected = true;
-    Serial.print("websocket connnection opened\n");
+    Serial.print("Websocket connnection opened\n");
     websocketLastPingTime = millis();
   } else if (event == WebsocketsEvent::ConnectionClosed) {
     apiConnected = false;
-    Serial.print("websocket connnection closed\n");
+    Serial.print("Websocket connnection closed\n");
   } else if (event == WebsocketsEvent::GotPing) {
-    Serial.print("got websocket ping\n");
+    Serial.print("Got websocket ping\n");
     client_websocket.pong();
     client_websocket.send("pong");
-    Serial.print("answered pong\n");
+    Serial.print("Answered pong\n");
     websocketLastPingTime = millis();
   } else if (event == WebsocketsEvent::GotPong) {
-    Serial.print("got websocket pong\n");
+    Serial.print("Got websocket pong\n");
   }
 }
 
@@ -433,7 +454,7 @@ void onEventsCallback(WebsocketsEvent event, String data) {
 void setup() {
   Serial.begin(115200);
   delay(2000);
-  Serial.print("\n\nsetup start\n");
+  Serial.print("\n-----\nSetup start\n-----\n\n");
   pinMode(settings.gridpin, INPUT_PULLUP);
   initChipID();
   initSettings();
@@ -444,9 +465,9 @@ void setup() {
   #if WIFI
   initWifi();
   #endif
-  initUpdate();
+  initUpdates();
 
-  Serial.print("setup complete\n");
+  Serial.print("\n-----\nSetup complete\n-----\n\n");
   socketConnect();
 
   asyncEngine.setInterval(websocketProcess, 3000);
@@ -455,8 +476,13 @@ void setup() {
 void loop() {
   asyncEngine.run();
   client_websocket.poll();
+
   #if WIFI
   wm.process();
+  #endif
+
+  #if ARDUINO_OTA_ENABLED
+  ArduinoOTA.handle();
   #endif
 
   #if GRID
@@ -464,5 +490,6 @@ void loop() {
     gridDetect();
   }
   #endif
+
   delay(200);
 }
