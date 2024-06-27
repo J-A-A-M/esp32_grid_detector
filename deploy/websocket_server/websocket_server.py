@@ -29,11 +29,12 @@ nodes_list = [
     "tr1-2",
     "rk2a-4",
     "rk4",
+    "tr3",
     "tr5"
 ]
 
 locations_list = [
-    1, 4, 2, 4, 5
+    1, 4, 2, 4, 4, 4
 ]
 
 
