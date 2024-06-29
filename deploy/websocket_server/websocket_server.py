@@ -25,16 +25,30 @@ memcached_host = os.environ.get("MEMCACHED_HOST") or "localhost"
 mc = Client(memcached_host, 11211)
 
 nodes_list = [
-    "t4a-9",
-    "tr1-2",
-    "rk2a-4",
+    "t4a_a",
+    "t4a_b",
+    "t4a_c",
+    "tr1_a",
+    "tr1_b",
+    "tr1_c",
+    "tr3_a",
+    "tr3_b",
+    "tr3_c",
+    "rk2a_a",
+    "rk2a_c",
+    "rk2a_c",
+    "tr5",
     "rk4",
-    "tr3",
-    "tr5"
-]
+    "rk6",
+    "tr4_a",
+    "tr4_b",
+    "bsh7",
+    "bsh9",
+    "bsh10_8_a",
+    "bsh10_8_b",
+    "pr1",
+    "pr2"
 
-locations_list = [
-    1, 4, 2, 4, 4, 4
 ]
 
 
@@ -198,18 +212,18 @@ async def print_clients(shared_data, mc):
             logger.error(f"Error in print_clients: {e}")
 
 
-async def send_grid_status(status, location, test):
+async def send_grid_status(status, node, test):
     data = {
         "blackout": status,
-        "location": location,
+        "location": node,
         "test": test
     }
     async with aiohttp.ClientSession() as session:
         async with session.post(endpoint_url, json=data) as response:
             if response.status == 200:
-                logger.info(f"location {location} blackout status {status}")
+                logger.info(f"location {node} blackout status {status}")
             else:
-                logger.error(f"location {location} blackout status failed: {response.status}", )
+                logger.error(f"location {node} blackout status failed: {response.status}", )
 
 
 async def update_grid_status(shared_data, mc):
@@ -246,9 +260,6 @@ async def update_grid_status(shared_data, mc):
                     status_change_time = nodes_status[node]['status_change_time']
 
                 if (current_state['grid'] in ['online','offline']) and (status in ['online', 'offline']) and current_state['grid'] != status:
-                    node_index = nodes_list.index(node)
-                    location = locations_list[node_index]
-
                     grid_change_time = datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%S+00:00")
                     logger.info(f"Node {node} grid change: {current_state['grid']} >>> {status}")
                     match environment:
@@ -261,7 +272,7 @@ async def update_grid_status(shared_data, mc):
                             status = False
                         case 'offline':
                             status = True
-                    await send_grid_status(status, location, test)
+                    await send_grid_status(status, node, test)
                 else:
                     grid_change_time = nodes_status[node]['grid_change_time']
 
