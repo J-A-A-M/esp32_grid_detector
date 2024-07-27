@@ -157,7 +157,7 @@ async def echo(websocket, path):
                                 test = True
                             case 'PROD':
                                 test = False
-                        match status:
+                        match data:
                             case 'online':
                                 status = False
                             case 'offline':
@@ -272,17 +272,17 @@ async def update_grid_status(shared_data, mc):
                 if (current_state['grid'] in ['online','offline']) and (status in ['online', 'offline']) and current_state['grid'] != status:
                     grid_change_time = datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%S+00:00")
                     logger.info(f"Node {node} grid change: {current_state['grid']} >>> {status}")
-                    match environment:
-                        case 'TEST':
-                            test = True
-                        case 'PROD':
-                            test = False
-                    match status:
-                        case 'online':
-                            status = False
-                        case 'offline':
-                            status = True
-                    await send_grid_status(status, node, test)
+                    # match environment:
+                    #     case 'TEST':
+                    #         test = True
+                    #     case 'PROD':
+                    #         test = False
+                    # match status:
+                    #     case 'online':
+                    #         status = False
+                    #     case 'offline':
+                    #         status = True
+                    # await send_grid_status(status, node, test)
                 else:
                     grid_change_time = nodes_status[node]['grid_change_time']
 
