@@ -152,6 +152,7 @@ async def echo(websocket, path):
                     case "grid":
                         client["grid"] = data
                         logger.info(f"{client_ip}:{client_port}:{client_node} >>> {data}")
+                        await send_grid_status(data, client_node, False)
                     case "connect_mode":
                         client["connect_mode"] = data
                         logger.info(f"{client_ip}:{client_port}:{client_node} >>> connect mode {data}")
@@ -258,7 +259,7 @@ async def update_grid_status(shared_data, mc):
                 else:
                     status_change_time = nodes_status[node]['status_change_time']
 
-                if (current_state['grid'] in ['online','offline']) and current_state['grid'] != status:
+                if (current_state['grid'] in ['online','offline']) and (status in ['online', 'offline']) and current_state['grid'] != status:
                     grid_change_time = datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%S+00:00")
                     logger.info(f"Node {node} grid change: {current_state['grid']} >>> {status}")
                     match environment:
