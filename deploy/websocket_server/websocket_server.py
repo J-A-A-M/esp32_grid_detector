@@ -258,7 +258,7 @@ async def update_grid_status(shared_data, mc):
                 else:
                     status_change_time = nodes_status[node]['status_change_time']
 
-                if (current_state['grid'] in ['online','offline']) and (status in ['online', 'offline']) and current_state['grid'] != status:
+                if (current_state['grid'] in ['online','offline']) and current_state['grid'] != status:
                     grid_change_time = datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%S+00:00")
                     logger.info(f"Node {node} grid change: {current_state['grid']} >>> {status}")
                     match environment:
