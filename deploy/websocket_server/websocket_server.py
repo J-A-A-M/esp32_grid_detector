@@ -152,7 +152,17 @@ async def echo(websocket, path):
                     case "grid":
                         client["grid"] = data
                         logger.info(f"{client_ip}:{client_port}:{client_node} >>> {data}")
-                        await send_grid_status(data, client_node, False)
+                        match environment:
+                            case 'TEST':
+                                test = True
+                            case 'PROD':
+                                test = False
+                        match status:
+                            case 'online':
+                                status = False
+                            case 'offline':
+                                status = True
+                        await send_grid_status(status, client_node, test)
                     case "connect_mode":
                         client["connect_mode"] = data
                         logger.info(f"{client_ip}:{client_port}:{client_node} >>> connect mode {data}")
