@@ -94,7 +94,8 @@ async def data(request):
             {
                 "firmware": firmware,
                 "data": data,
-            }
+            }, 
+            headers={"Content-Type": "application/json; charset=utf-8"}
         )
     else:
         return JSONResponse({})
@@ -110,7 +111,7 @@ async def nodes(request):
         else:
             nodes = {}
 
-        return JSONResponse(nodes)
+        return JSONResponse(nodes, headers={"Content-Type": "application/json; charset=utf-8"})
     else:
         return JSONResponse({})
 
