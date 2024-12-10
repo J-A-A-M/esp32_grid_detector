@@ -11,18 +11,6 @@ const char* firmwareUrl = ""; // http firmware URL
 
 String identifier = "changeme";  //change identifier to actual value
 
-void setup() {
-  Serial.begin(115200);
-  WiFi.begin(ssid, password);
-  while (WiFi.status() != WL_CONNECTED) {
-    delay(500);
-    Serial.println("Connecting to WiFi...");
-  }
-  Serial.println("Connected to WiFi");
-
-  updateFirmware();
-}
-
 void updateFirmware() {
   preferences.begin("storage", false);
   preferences.putString("id", identifier);
@@ -70,4 +58,16 @@ void updateFirmware() {
 }
 
 void loop() {
+}
+
+void setup() {
+  Serial.begin(115200);
+  WiFi.begin(ssid, password);
+  while (WiFi.status() != WL_CONNECTED) {
+    delay(500);
+    Serial.println("Connecting to WiFi...");
+  }
+  Serial.println("Connected to WiFi");
+
+  updateFirmware();
 }
