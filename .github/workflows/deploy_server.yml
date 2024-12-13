@@ -28,7 +28,7 @@ jobs:
               username: ${{ secrets.GOOGLE_CLOUD_SSH_USER }}
               key: ${{ secrets.GOOGLE_PRIVATE_SSH }}
               script: |
-                cd esp32_grid_detector/deploy/
+                cd /root/esp32_grid_detector/deploy/
                 git fetch --all
                 git switch ${{ github.ref_name }}
                 git pull
@@ -41,7 +41,7 @@ jobs:
               username: ${{ secrets.GOOGLE_CLOUD_SSH_USER }}
               key: ${{ secrets.GOOGLE_PRIVATE_SSH }}
               script: |
-                cd esp32_grid_detector/deploy/
+                cd /root/esp32_grid_detector/deploy/
                 git fetch --all
                 git switch ${{ github.ref_name }}
                 git pull
