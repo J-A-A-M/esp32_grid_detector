@@ -22,11 +22,11 @@ jobs:
         steps:
           - name: Redeploy WebSockets
             if: ${{ inputs.redeploy_web_sockets || inputs.redeploy_all }}
-            uses: appleboy/ssh-action@v1.0.3
+            uses: appleboy/ssh-action@v1.2.0
             with:
-              host: ${{ secrets.SERVER_IP }}
-              username: ${{ secrets.SERVER_SSH_USER }}
-              password: ${{ secrets.SERVER_SSH_PASSWORD }}
+              host: ${{ secrets.GOOGLE_CLOUD_IP }}
+              username: ${{ secrets.GOOGLE_CLOUD_SSH_USER }}
+              password: ${{ secrets.GOOGLE_PRIVATE_SSH }}
               script: |
                 cd /root/esp32_grid_detector/deploy/
                 git fetch --all
@@ -35,11 +35,11 @@ jobs:
                 bash redeploy_websocket_server.sh -m ${{ secrets.MEMCACHED_HOST }} -u ${{ secrets.ENDPOINT_URL }} -e PROD
           - name: Redeploy Web Server
             if: ${{ inputs.redeploy_web_server || inputs.redeploy_all }}
-            uses: appleboy/ssh-action@v1.0.3
+            uses: appleboy/ssh-action@v1.2.0
             with:
-              host: ${{ secrets.SERVER_IP }}
-              username: ${{ secrets.SERVER_SSH_USER }}
-              password: ${{ secrets.SERVER_SSH_PASSWORD }}
+              host: ${{ secrets.GOOGLE_CLOUD_IP }}
+              username: ${{ secrets.GOOGLE_CLOUD_SSH_USER }}
+              password: ${{ secrets.GOOGLE_PRIVATE_SSH }}
               script: |
                 cd /root/esp32_grid_detector/deploy/
                 git fetch --all
@@ -47,10 +47,10 @@ jobs:
                 git pull
                 bash redeploy_web_server.sh -d ${{ secrets.WEB_TOKEN }} -m ${{ secrets.MEMCACHED_HOST }}
           - name: Clear unused images
-            uses: appleboy/ssh-action@v1.0.3
+            uses: appleboy/ssh-action@v1.2.0
             with:
-              host: ${{ secrets.SERVER_IP }}
-              username: ${{ secrets.SERVER_SSH_USER }}
-              password: ${{ secrets.SERVER_SSH_PASSWORD }}
+              host: ${{ secrets.GOOGLE_CLOUD_IP }}
+              username: ${{ secrets.GOOGLE_CLOUD_SSH_USER }}
+              password: ${{ secrets.GOOGLE_PRIVATE_SSH }}
               script: |
                 docker image prune -f
