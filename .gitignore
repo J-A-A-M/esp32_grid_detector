@@ -1,4 +1,6 @@
-.vscode
-.idea
 .DS_Store
-.venv
+.idea/
+.vscode/
+.build/
+.pio/
+.venv/
