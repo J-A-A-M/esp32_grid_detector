@@ -26,7 +26,7 @@ jobs:
             with:
               host: ${{ secrets.GOOGLE_CLOUD_IP }}
               username: ${{ secrets.GOOGLE_CLOUD_SSH_USER }}
-              password: ${{ secrets.GOOGLE_PRIVATE_SSH }}
+              key: ${{ secrets.GOOGLE_PRIVATE_SSH }}
               script: |
                 cd esp32_grid_detector/deploy/
                 git fetch --all
@@ -39,7 +39,7 @@ jobs:
             with:
               host: ${{ secrets.GOOGLE_CLOUD_IP }}
               username: ${{ secrets.GOOGLE_CLOUD_SSH_USER }}
-              password: ${{ secrets.GOOGLE_PRIVATE_SSH }}
+              key: ${{ secrets.GOOGLE_PRIVATE_SSH }}
               script: |
                 cd esp32_grid_detector/deploy/
                 git fetch --all
@@ -51,6 +51,6 @@ jobs:
             with:
               host: ${{ secrets.GOOGLE_CLOUD_IP }}
               username: ${{ secrets.GOOGLE_CLOUD_SSH_USER }}
-              password: ${{ secrets.GOOGLE_PRIVATE_SSH }}
+              key: ${{ secrets.GOOGLE_PRIVATE_SSH }}
               script: |
                 docker image prune -f
