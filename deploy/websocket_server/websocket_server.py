@@ -46,6 +46,8 @@ nodes_list = [
     "bsh9",
     "bsh10_8_a",
     "bsh10_8_b",
+    "rk10_a",
+    "rk10_b",
     "pr1",
     "pr2"
 ]
