@@ -3,8 +3,6 @@
 #define GRID 1
 #define ARDUINO_OTA_ENABLED 1
 
-const PROGMEM char* VERSION = "0.0.4";
-
 #include <Preferences.h>
 #include <ArduinoWebsockets.h>
 #include <async.h>
@@ -14,6 +12,8 @@ const PROGMEM char* VERSION = "0.0.4";
 #if ARDUINO_OTA_ENABLED
 #include <ArduinoOTA.h>
 #endif
+
+const PROGMEM char* VERSION = "0.0.4";
 
 #define INIT            0x3
 
@@ -113,50 +113,6 @@ String connectMode() {
   #endif
 }
 
-#if WIFI
-char* getLocalIP() {
-  strcpy(localIP, WiFi.localIP().toString().c_str());
-  return localIP;
-}
-
-void apCallback(WiFiManager* wifiManager) {
-  const char* message = wifiManager->getConfigPortalSSID().c_str();
-  Serial.printf("Connect to: %s\n", message);
-  WiFi.onEvent(Events);
-}
-
-void saveConfigCallback() {
-  Serial.printf("Saved AP: %s\n", wm.getWiFiSSID(true).c_str());
-  delay(2000);
-  rebootDevice();
-}
-
-void initWifi() {
-  Serial.print("Init WIFI\n");
-  WiFi.mode(WIFI_STA); 
-
-  wm.setHostname(settings.broadcastname);
-  wm.setTitle(settings.devicename);
-  wm.setConfigPortalBlocking(true);
-  wm.setConnectTimeout(3);
-  wm.setConnectRetries(10);
-  wm.setAPCallback(apCallback);
-  wm.setSaveConfigCallback(saveConfigCallback);
-  wm.setConfigPortalTimeout(180);
-  Serial.printf("Connecting to: %s\n", wm.getWiFiSSID(true).c_str());
-  if (!wm.autoConnect(settings.apssid)) {
-    Serial.print("Reboot\n");
-    rebootDevice(5000);
-    return;
-  }
-  Serial.print("WIFI initialized with DHCP\n");
-  wm.setHttpPort(80);
-  wm.startWebPortal();
-  Serial.printf("IP address: %s\n", getLocalIP());
-  connected = true;
-}
-#endif
-
 void Events(WiFiEvent_t event) {
   switch (event) {
     case ARDUINO_EVENT_WIFI_AP_STACONNECTED: {
@@ -201,6 +157,50 @@ void Events(WiFiEvent_t event) {
       break;
   }
 }
+
+#if WIFI
+char* getLocalIP() {
+  strcpy(localIP, WiFi.localIP().toString().c_str());
+  return localIP;
+}
+
+void apCallback(WiFiManager* wifiManager) {
+  const char* message = wifiManager->getConfigPortalSSID().c_str();
+  Serial.printf("Connect to: %s\n", message);
+  WiFi.onEvent(Events);
+}
+
+void saveConfigCallback() {
+  Serial.printf("Saved AP: %s\n", wm.getWiFiSSID(true).c_str());
+  delay(2000);
+  rebootDevice();
+}
+
+void initWifi() {
+  Serial.print("Init WIFI\n");
+  WiFi.mode(WIFI_STA); 
+
+  wm.setHostname(settings.broadcastname);
+  wm.setTitle(settings.devicename);
+  wm.setConfigPortalBlocking(true);
+  wm.setConnectTimeout(3);
+  wm.setConnectRetries(10);
+  wm.setAPCallback(apCallback);
+  wm.setSaveConfigCallback(saveConfigCallback);
+  wm.setConfigPortalTimeout(180);
+  Serial.printf("Connecting to: %s\n", wm.getWiFiSSID(true).c_str());
+  if (!wm.autoConnect(settings.apssid)) {
+    Serial.print("Reboot\n");
+    rebootDevice(5000);
+    return;
+  }
+  Serial.print("WIFI initialized with DHCP\n");
+  wm.setHttpPort(80);
+  wm.startWebPortal();
+  Serial.printf("IP address: %s\n", getLocalIP());
+  connected = true;
+}
+#endif
 
 #if ETHERNET
 void initEthernet() {
@@ -251,16 +251,6 @@ void initUpdates() {
   });
 }
 
-void updateFw() {
-  if (newFirmwareUrl.isEmpty()) {
-    Serial.println("No firmware url");
-    return;
-  }
-  Serial.printf("Firmware url: %s\n", newFirmwareUrl.c_str());
-  t_httpUpdate_return fwRet = httpUpdate.update(client, newFirmwareUrl.c_str(), VERSION);
-  handleUpdateStatus(fwRet);
-}
-
 void handleUpdateStatus(t_httpUpdate_return ret) {
   Serial.println("Firmware update status:");
   switch (ret) {
@@ -274,6 +264,16 @@ void handleUpdateStatus(t_httpUpdate_return ret) {
       Serial.println("Firmware update successfully completed. Rebooting...");
       break;
   }
+}
+
+void updateFw() {
+  if (newFirmwareUrl.isEmpty()) {
+    Serial.println("No firmware url");
+    return;
+  }
+  Serial.printf("Firmware url: %s\n", newFirmwareUrl.c_str());
+  t_httpUpdate_return fwRet = httpUpdate.update(client, newFirmwareUrl.c_str(), VERSION);
+  handleUpdateStatus(fwRet);
 }
 
 #if GRID
@@ -330,23 +330,6 @@ void gridDetect() {
 }
 #endif
 
-void websocketProcess() {
-  if (millis() - websocketLastPingTime > settings.ws_alert_time) {
-    websocketReconnect = true;
-  }
-  if (millis() - websocketLastPingTime > settings.ws_reboot_time) {
-    rebootDevice(3000);
-  }
-  if (!client_websocket.available() or websocketReconnect) {
-    Serial.print("Reconnecting...\n");
-    socketConnect();
-    if (client_websocket.available()) {
-      lastState = INIT;
-      gridStatus = INIT;
-    }
-  }
-}
-
 JsonDocument parseJson(const char* payload) {
   JsonDocument doc;
   DeserializationError error = deserializeJson(doc, payload);
@@ -355,45 +338,6 @@ JsonDocument parseJson(const char* payload) {
     return doc;
   } else {
     return doc;
-  }
-}
-
-void socketConnect() {
-  Serial.print("Websocket connection start\n");
-  client_websocket.onMessage(onMessageCallback);
-  client_websocket.onEvent(onEventsCallback);
-  long startTime = millis();
-  char webSocketUrl[100];
-  sprintf(webSocketUrl, "ws://%s:%d/grid_detector", settings.serverhost, settings.websocket_port);
-  Serial.printf("Websoket URL: %s\n", webSocketUrl);
-  client_websocket.connect(webSocketUrl);
-  if (client_websocket.available()) {
-    long connectTime = millis() - startTime;
-    char connectTime_c[12];
-    sprintf(connectTime_c, "%ld", connectTime);
-    Serial.printf("Websocket connection time: %s ms\n", connectTime_c);
-    char nodeInfo[100];
-    sprintf(nodeInfo, "node:%s", settings.identifier);
-    Serial.printf("Sent node info: %s\n", settings.identifier);
-    client_websocket.send(nodeInfo);
-    char firmwareInfo[100];
-    sprintf(firmwareInfo, "firmware:%s", VERSION);
-    Serial.printf("Sent firmware info: %s\n", VERSION);
-    client_websocket.send(firmwareInfo);
-    char chipIdInfo[25];
-    sprintf(chipIdInfo, "chip_id:%s", chipID);
-    Serial.printf("Sent chipID info: %s\n", chipID);
-    client_websocket.send(chipIdInfo);
-    char connectInfo[25];
-    sprintf(connectInfo, "connect_mode:%s", connectMode());
-    Serial.printf("Sent connect_mode info: %s\n", connectMode());
-    client_websocket.send(connectInfo);
-
-    client_websocket.ping();
-    websocketReconnect = false;
-    Serial.print("Websocket connected\n");
-  } else {
-    Serial.print("Websocket not connected\n");
   }
 }
 
@@ -450,6 +394,61 @@ void onEventsCallback(WebsocketsEvent event, String data) {
   }
 }
 
+void socketConnect() {
+  Serial.print("Websocket connection start\n");
+  client_websocket.onMessage(onMessageCallback);
+  client_websocket.onEvent(onEventsCallback);
+  long startTime = millis();
+  char webSocketUrl[100];
+  sprintf(webSocketUrl, "ws://%s:%d/grid_detector", settings.serverhost, settings.websocket_port);
+  Serial.printf("Websoket URL: %s\n", webSocketUrl);
+  client_websocket.connect(webSocketUrl);
+  if (client_websocket.available()) {
+    long connectTime = millis() - startTime;
+    char connectTime_c[12];
+    sprintf(connectTime_c, "%ld", connectTime);
+    Serial.printf("Websocket connection time: %s ms\n", connectTime_c);
+    char nodeInfo[100];
+    sprintf(nodeInfo, "node:%s", settings.identifier);
+    Serial.printf("Sent node info: %s\n", settings.identifier);
+    client_websocket.send(nodeInfo);
+    char firmwareInfo[100];
+    sprintf(firmwareInfo, "firmware:%s", VERSION);
+    Serial.printf("Sent firmware info: %s\n", VERSION);
+    client_websocket.send(firmwareInfo);
+    char chipIdInfo[25];
+    sprintf(chipIdInfo, "chip_id:%s", chipID);
+    Serial.printf("Sent chipID info: %s\n", chipID);
+    client_websocket.send(chipIdInfo);
+    char connectInfo[25];
+    sprintf(connectInfo, "connect_mode:%s", connectMode());
+    Serial.printf("Sent connect_mode info: %s\n", connectMode());
+    client_websocket.send(connectInfo);
+
+    client_websocket.ping();
+    websocketReconnect = false;
+    Serial.print("Websocket connected\n");
+  } else {
+    Serial.print("Websocket not connected\n");
+  }
+}
+
+void websocketProcess() {
+  if (millis() - websocketLastPingTime > settings.ws_alert_time) {
+    websocketReconnect = true;
+  }
+  if (millis() - websocketLastPingTime > settings.ws_reboot_time) {
+    rebootDevice(3000);
+  }
+  if (!client_websocket.available() or websocketReconnect) {
+    Serial.print("Reconnecting...\n");
+    socketConnect();
+    if (client_websocket.available()) {
+      lastState = INIT;
+      gridStatus = INIT;
+    }
+  }
+}
 
 void setup() {
   Serial.begin(115200);
