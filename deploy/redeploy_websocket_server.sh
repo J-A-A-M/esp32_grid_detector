@@ -72,7 +72,7 @@ docker rm grid_detector_websocket_server || true
 
 # Deploying the new container
 echo "Deploying new container..."
-docker run --name grid_detector_websocket_server --restart unless-stopped -d  -p "$WEBSOCKET_PORT":"$WEBSOCKET_PORT" --env WEBSOCKET_PORT="$WEBSOCKET_PORT"  --env ENDPOINT_URL="$ENDPOINT_URL" --env ENVIRONMENT="$ENVIRONMENT" --env DEBUG_LEVEL="$DEBUG_LEVEL" --env PING_INTERVAL="$PING_INTERVAL" --env MEMCACHED_HOST="$MEMCACHED_HOST" grid_detector_websocket_server
+docker run --name grid_detector_websocket_server --restart unless-stopped --network=jaam -d  -p "$WEBSOCKET_PORT":"$WEBSOCKET_PORT" --env WEBSOCKET_PORT="$WEBSOCKET_PORT"  --env ENDPOINT_URL="$ENDPOINT_URL" --env ENVIRONMENT="$ENVIRONMENT" --env DEBUG_LEVEL="$DEBUG_LEVEL" --env PING_INTERVAL="$PING_INTERVAL" --env MEMCACHED_HOST="$MEMCACHED_HOST" grid_detector_websocket_server
 
 echo "Container deployed successfully!"
 
