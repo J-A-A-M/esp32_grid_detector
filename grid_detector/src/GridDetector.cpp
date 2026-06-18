@@ -1,8 +1,3 @@
-#define ETHERNET 0
-#define WIFI 1
-#define GRID 1
-#define ARDUINO_OTA_ENABLED 1
-
 #include <Preferences.h>
 #include <ArduinoWebsockets.h>
 #include <async.h>
@@ -27,11 +22,12 @@ const PROGMEM char* VERSION = "0.0.4";
 #define ETH_MDIO_PIN    18
 #endif
 
+#include <WiFiClientSecure.h>
 #if WIFI
 #include <WiFiManager.h>
 WiFiManager     wm;
 #endif
-WiFiClient      client;
+WiFiClientSecure  client;
 
 using namespace   websockets;
 WebsocketsClient  client_websocket;
@@ -48,8 +44,8 @@ struct Settings {
   char          broadcastname[31]     = "griddetector";
   int           ws_alert_time         = 150000;
   int           ws_reboot_time        = 300000;
-  char          serverhost[31]        = "alerts.net.ua";
-  int           websocket_port        = 39447;
+  char          serverhost[31]        = "grid.respublika.pp.ua";
+  int           websocket_port        = 443;
   int           reaction_time         = 2000;
   // ------- web config end
 };
@@ -98,6 +94,24 @@ void initSettings() {
   settings.reaction_time    = preferences.getInt("rt", settings.reaction_time);
 
   preferences.end();
+
+  if (strcmp(settings.serverhost, "alerts.net.ua") == 0) {
+    Serial.print("Migrating serverhost to grid.respublika.pp.ua\n");
+    strlcpy(settings.serverhost, "grid.respublika.pp.ua", sizeof(settings.serverhost));
+    preferences.begin("storage", false);
+    preferences.putString("host", settings.serverhost);
+    preferences.end();
+    Serial.print("serverhost migration done\n");
+  }
+
+  if (settings.websocket_port == 39447) {
+    Serial.print("Migrating websocket_port to 443\n");
+    settings.websocket_port = 443;
+    preferences.begin("storage", false);
+    preferences.putInt("wsp", settings.websocket_port);
+    preferences.end();
+    Serial.print("websocket_port migration done\n");
+  }
 
   Serial.printf("Node inited: %s\n", settings.identifier);
   Serial.printf("Current firmware version: %s\n", VERSION);
@@ -211,6 +225,11 @@ void initEthernet() {
   connected = true;
 }
 #endif
+
+void initSSL() {
+  client.setInsecure();
+  Serial.print("SSL client initialized\n");
+}
 
 void initUpdates() {
   Serial.println("Init update");
@@ -400,7 +419,7 @@ void socketConnect() {
   client_websocket.onEvent(onEventsCallback);
   long startTime = millis();
   char webSocketUrl[100];
-  sprintf(webSocketUrl, "ws://%s:%d/grid_detector", settings.serverhost, settings.websocket_port);
+  sprintf(webSocketUrl, "wss://%s:%d/grid_detector", settings.serverhost, settings.websocket_port);
   Serial.printf("Websoket URL: %s\n", webSocketUrl);
   client_websocket.connect(webSocketUrl);
   if (client_websocket.available()) {
@@ -464,6 +483,7 @@ void setup() {
   #if WIFI
   initWifi();
   #endif
+  initSSL();
   initUpdates();
 
   Serial.print("\n-----\nSetup complete\n-----\n\n");
