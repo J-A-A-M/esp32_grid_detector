@@ -11,19 +11,25 @@ jobs:
   build_wifi:
     if: ${{ github.ref_name == 'master' }}
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
       - name: Set version in firmware source
+        env:
+          RELEASE_VERSION: ${{ inputs.release-version }}
         run: |
-          sed -i 's/VERSION = ".*";/VERSION = "${{ inputs.release-version }}";/' ${{ github.workspace }}/grid_detector/src/GridDetector.cpp
+          sed -i "s/VERSION = \".*\";/VERSION = \"${RELEASE_VERSION}\";/" "$GITHUB_WORKSPACE/grid_detector/src/GridDetector.cpp"
       - name: Compile WiFi firmware
         uses: ./.github/workflows/firmware-compile
         with:
           project-folder: grid_detector
           environment: grid_detector_wifi
       - name: Upload WiFi firmware
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: Grid_Detector_WiFi_${{ inputs.release-version }}.bin
           path: ${{ github.workspace }}/grid_detector/.pio/build/grid_detector_wifi/firmware.bin
@@ -31,19 +37,25 @@ jobs:
   build_ethernet:
     if: ${{ github.ref_name == 'master' }}
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
       - name: Set version in firmware source
+        env:
+          RELEASE_VERSION: ${{ inputs.release-version }}
         run: |
-          sed -i 's/VERSION = ".*";/VERSION = "${{ inputs.release-version }}";/' ${{ github.workspace }}/grid_detector/src/GridDetector.cpp
+          sed -i "s/VERSION = \".*\";/VERSION = \"${RELEASE_VERSION}\";/" "$GITHUB_WORKSPACE/grid_detector/src/GridDetector.cpp"
       - name: Compile Ethernet firmware
         uses: ./.github/workflows/firmware-compile
         with:
           project-folder: grid_detector
           environment: grid_detector_eth
       - name: Upload Ethernet firmware
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: Grid_Detector_ETH_${{ inputs.release-version }}.bin
           path: ${{ github.workspace }}/grid_detector/.pio/build/grid_detector_eth/firmware.bin
@@ -56,23 +68,27 @@ jobs:
       id-token: write
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
       - name: Set version in firmware source
+        env:
+          RELEASE_VERSION: ${{ inputs.release-version }}
         run: |
-          sed -i 's/VERSION = ".*";/VERSION = "${{ inputs.release-version }}";/' ${{ github.workspace }}/grid_detector/src/GridDetector.cpp
+          sed -i "s/VERSION = \".*\";/VERSION = \"${RELEASE_VERSION}\";/" "$GITHUB_WORKSPACE/grid_detector/src/GridDetector.cpp"
       - name: Download WiFi firmware
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: Grid_Detector_WiFi_${{ inputs.release-version }}.bin
           path: ${{ github.workspace }}/Grid_Detector_WiFi_${{ inputs.release-version }}.bin
       - name: Download Ethernet firmware
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: Grid_Detector_ETH_${{ inputs.release-version }}.bin
           path: ${{ github.workspace }}/Grid_Detector_ETH_${{ inputs.release-version }}.bin
       - name: Commit version bump
         id: commit_changes
-        uses: stefanzweifel/git-auto-commit-action@v5
+        uses: stefanzweifel/git-auto-commit-action@v7
         with:
           commit_message: "Release ${{ inputs.release-version }}"
           file_pattern: ${{ github.workspace }}/grid_detector/src/GridDetector.cpp

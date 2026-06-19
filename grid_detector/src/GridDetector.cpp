@@ -1,3 +1,19 @@
+#ifndef WIFI
+#  error "WIFI is not defined — use a PlatformIO environment (grid_detector_wifi or grid_detector_eth)"
+#endif
+#ifndef ETHERNET
+#  error "ETHERNET is not defined — use a PlatformIO environment (grid_detector_wifi or grid_detector_eth)"
+#endif
+#if WIFI && ETHERNET
+#  error "Cannot enable both WIFI and ETHERNET simultaneously"
+#endif
+#ifndef GRID
+#  error "GRID is not defined"
+#endif
+#ifndef ARDUINO_OTA_ENABLED
+#  error "ARDUINO_OTA_ENABLED is not defined"
+#endif
+
 #include <Preferences.h>
 #include <ArduinoWebsockets.h>
 #include <async.h>

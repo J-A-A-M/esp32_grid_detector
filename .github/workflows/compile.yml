@@ -1,4 +1,6 @@
 name: 🏗️ Compile Firmware
+permissions:
+  contents: read
 on:
   pull_request:
     types: [ opened, synchronize, reopened ]
@@ -9,18 +11,20 @@ jobs:
   compile_grid_detector:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
       - name: Compile Grid Detector firmware (all environments)
         uses: ./.github/workflows/firmware-compile
         with:
           project-folder: grid_detector
       - name: Upload WiFi firmware
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: grid_detector_wifi.bin
           path: ${{ github.workspace }}/grid_detector/.pio/build/grid_detector_wifi/firmware.bin
       - name: Upload Ethernet firmware
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: grid_detector_eth.bin
           path: ${{ github.workspace }}/grid_detector/.pio/build/grid_detector_eth/firmware.bin
@@ -28,7 +32,9 @@ jobs:
   compile_flasher:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
       - name: Compile Flasher firmware
         uses: ./.github/workflows/firmware-compile
         with:

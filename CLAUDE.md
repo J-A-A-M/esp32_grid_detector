@@ -37,16 +37,16 @@ cd grid_detector && pio run --target erase
 3. Flash main firmware: `cd grid_detector && pio run --target upload`
 4. On first boot the device opens AP **"GridDetector"** — connect and set WiFi credentials via the portal
 
-## Compile-time Flags (top of GridDetector.cpp)
+## Compile-time Flags
 
-| Flag | Default | Purpose |
-|------|---------|---------|
-| `WIFI` | 1 | Enable WiFi (WiFiManager) |
-| `ETHERNET` | 0 | Enable LAN8720 ethernet |
-| `GRID` | 1 | Enable grid detection logic |
-| `ARDUINO_OTA_ENABLED` | 1 | Enable OTA via ArduinoOTA |
+Flags are set automatically via PlatformIO environments — never patch them manually.
 
-The release workflow patches these flags via `sed` before compiling — never toggle both WIFI and ETHERNET to 1.
+| Environment | `WIFI` | `ETHERNET` | `GRID` | `ARDUINO_OTA_ENABLED` |
+|-------------|--------|-----------|--------|----------------------|
+| `grid_detector_wifi` | 1 | 0 | 1 | 1 |
+| `grid_detector_eth`  | 0 | 1 | 1 | 1 |
+
+Never enable both `WIFI` and `ETHERNET` simultaneously — the firmware will fail to compile with a `#error`.
 
 ## Hardware
 
@@ -62,7 +62,7 @@ The release workflow patches these flags via `sed` before compiling — never to
 | `dn` | `"Grid Detector"` | Device name |
 | `bn` | `"griddetector"` | mDNS broadcast name |
 | `host` | `"grid.respublika.pp.ua"` | WebSocket server host |
-| `wsp` | 39447 | WebSocket port |
+| `wsp` | 443 | WebSocket port (migrated from 39447 on first boot of new firmware) |
 | `wsat` | 150000 ms | Reconnect alert threshold |
 | `wsrt` | 300000 ms | Auto-reboot threshold |
 | `rt` | 2000 ms | Grid state reaction time |
@@ -88,9 +88,10 @@ Settings are configurable via WiFiManager web portal (port 80) after connection.
 ## Release
 
 Triggered via GitHub Actions → `release.yml` with `release-version` input:
-1. Compiles WiFi and Ethernet builds (patches `#define WIFI/ETHERNET` via `sed`)
-2. Creates GitHub Release with both `.bin` files
-3. Calls web server (`UPDATE_FIRMWARE_URL` secret) to push OTA to all connected devices
+1. Compiles both variants using PlatformIO environments: `grid_detector_wifi` → `Grid_Detector_WiFi_<ver>.bin`, `grid_detector_eth` → `Grid_Detector_ETH_<ver>.bin`
+2. Patches `VERSION` string in source via `sed`, commits the bump
+3. Creates GitHub Release with both `.bin` files
+4. Calls web server (`UPDATE_FIRMWARE_URL` secret) to push OTA to all connected devices
 
 ## Gotchas
 
