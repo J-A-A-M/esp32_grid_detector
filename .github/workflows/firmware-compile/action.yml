@@ -31,8 +31,8 @@ runs:
         PROJECT_FOLDER: ${{ inputs.project-folder }}
         ENVIRONMENT: ${{ inputs.environment }}
       run: |
-        ENV_FLAG=""
         if [ -n "$ENVIRONMENT" ]; then
-          ENV_FLAG="-e $ENVIRONMENT"
+          pio run -d "$PROJECT_FOLDER" -e "$ENVIRONMENT"
+        else
+          pio run -d "$PROJECT_FOLDER"
         fi
-        pio run -d "$PROJECT_FOLDER" $ENV_FLAG

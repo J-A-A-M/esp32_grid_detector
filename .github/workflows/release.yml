@@ -28,11 +28,17 @@ jobs:
         with:
           project-folder: grid_detector
           environment: grid_detector_wifi
+      - name: Rename WiFi firmware
+        env:
+          RELEASE_VERSION: ${{ inputs.release-version }}
+        run: |
+          cp "$GITHUB_WORKSPACE/grid_detector/.pio/build/grid_detector_wifi/firmware.bin" \
+             "$GITHUB_WORKSPACE/Grid_Detector_WiFi_${RELEASE_VERSION}.bin"
       - name: Upload WiFi firmware
         uses: actions/upload-artifact@v7
         with:
           name: Grid_Detector_WiFi_${{ inputs.release-version }}.bin
-          path: ${{ github.workspace }}/grid_detector/.pio/build/grid_detector_wifi/firmware.bin
+          path: ${{ github.workspace }}/Grid_Detector_WiFi_${{ inputs.release-version }}.bin
 
   build_ethernet:
     if: ${{ github.ref_name == 'master' }}
@@ -54,11 +60,17 @@ jobs:
         with:
           project-folder: grid_detector
           environment: grid_detector_eth
+      - name: Rename Ethernet firmware
+        env:
+          RELEASE_VERSION: ${{ inputs.release-version }}
+        run: |
+          cp "$GITHUB_WORKSPACE/grid_detector/.pio/build/grid_detector_eth/firmware.bin" \
+             "$GITHUB_WORKSPACE/Grid_Detector_ETH_${RELEASE_VERSION}.bin"
       - name: Upload Ethernet firmware
         uses: actions/upload-artifact@v7
         with:
           name: Grid_Detector_ETH_${{ inputs.release-version }}.bin
-          path: ${{ github.workspace }}/grid_detector/.pio/build/grid_detector_eth/firmware.bin
+          path: ${{ github.workspace }}/Grid_Detector_ETH_${{ inputs.release-version }}.bin
 
   release_firmware:
     needs: [build_wifi, build_ethernet]

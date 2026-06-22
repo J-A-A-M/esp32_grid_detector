@@ -7,6 +7,9 @@
 #if WIFI && ETHERNET
 #  error "Cannot enable both WIFI and ETHERNET simultaneously"
 #endif
+#if !WIFI && !ETHERNET
+#  error "Either WIFI or ETHERNET must be enabled"
+#endif
 #ifndef GRID
 #  error "GRID is not defined"
 #endif
