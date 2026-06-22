@@ -244,6 +244,7 @@ void initEthernet() {
 
 void initSSL() {
   client.setInsecure();
+  client_websocket.setInsecure();
   Serial.print("SSL client initialized\n");
 }
 
