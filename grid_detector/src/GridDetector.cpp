@@ -38,6 +38,22 @@ const PROGMEM char* VERSION = "0.0.4";
 #define ETH_MDIO_PIN    18
 #endif
 
+// GTS Root R4 — root CA for Cloudflare/Google Trust Services (valid until 2036)
+const PROGMEM char* GTS_ROOT_R4 = \
+"-----BEGIN CERTIFICATE-----\n" \
+"MIICCTCCAY6gAwIBAgINAgPlwGjvYxqccpBQUjAKBggqhkjOPQQDAzBHMQswCQYD\n" \
+"VQQGEwJVUzEiMCAGA1UEChMZR29vZ2xlIFRydXN0IFNlcnZpY2VzIExMQzEUMBIG\n" \
+"A1UEAxMLR1RTIFJvb3QgUjQwHhcNMTYwNjIyMDAwMDAwWhcNMzYwNjIyMDAwMDAw\n" \
+"WjBHMQswCQYDVQQGEwJVUzEiMCAGA1UEChMZR29vZ2xlIFRydXN0IFNlcnZpY2Vz\n" \
+"IExMQzEUMBIGA1UEAxMLR1RTIFJvb3QgUjQwdjAQBgcqhkjOPQIBBgUrgQQAIgNi\n" \
+"AATzdHOnaItgrkO4NcWBMHtLSZ37wWHO5t5GvWvVYRg1rkDdc/eJkTBa6zzuhXyi\n" \
+"QHY7qca4R9gq55KRanPpsXI5nymfopjTX15YhmUPoYRlBtHci8nHc8iMai/lxKvR\n" \
+"HYqjQjBAMA4GA1UdDwEB/wQEAwIBhjAPBgNVHRMBAf8EBTADAQH/MB0GA1UdDgQW\n" \
+"BBSATNbrdP9JNqPV2Py1PsVq8JQdjDAKBggqhkjOPQQDAwNpADBmAjEA6ED/g94D\n" \
+"9J+uHXqnLrmvT/aDHQ4thQEd0dlq7A/Cr8deVl5c1RxYIigL9zC2L7F8AjEA8GE8\n" \
+"p/SgguMh1YQdc4acLa/KNJvxn7kjNuK8YAOdgLOaVsjh4rsUecrNIdSUtUlD\n" \
+"-----END CERTIFICATE-----\n";
+
 #include <WiFiClientSecure.h>
 #if WIFI
 #include <WiFiManager.h>
@@ -243,8 +259,8 @@ void initEthernet() {
 #endif
 
 void initSSL() {
-  client.setInsecure();
-  client_websocket.setInsecure();
+  client.setCACert(GTS_ROOT_R4);
+  client_websocket.setCACert(GTS_ROOT_R4);
   Serial.print("SSL client initialized\n");
 }
 
