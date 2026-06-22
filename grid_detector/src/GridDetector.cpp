@@ -120,7 +120,7 @@ void initSettings() {
     Serial.print("serverhost migration done\n");
   }
 
-  if (settings.websocket_port == 39447) {
+  if (settings.websocket_port == 39447 || settings.websocket_port == 38440) {
     Serial.print("Migrating websocket_port to 443\n");
     settings.websocket_port = 443;
     preferences.begin("storage", false);
