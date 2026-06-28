@@ -27,7 +27,7 @@
 #include <ArduinoOTA.h>
 #endif
 
-const PROGMEM char* VERSION = "0.0.4";
+const PROGMEM char* VERSION = "0.1.0";
 
 #define INIT            0x3
 
