@@ -1,43 +1,41 @@
-  name: 🏗️ Compile Firmware + Lint Check + Black Check
-  on:
-    pull_request:
-      types: [ opened, synchronize, reopened ]
-      branches:
-        - master
-    workflow_dispatch:
-  jobs:
-    compile_grid_detector:
-        runs-on: ubuntu-latest
-        steps:
-          - uses: actions/checkout@v4
-          - name: Compile Grid Detector firmware
-            uses: ./.github/workflows/firmware-compile
-            with:
-              project-folder: grid_detector
-          - name: Copy bin file
-            run: |
-              cp -f ${{ github.workspace }}/grid_detector/.pio/build/grid_detector/firmware.bin ${{ github.workspace }}/grid_detector.bin
-          - name: Upload firmware
-            uses: actions/upload-artifact@v4
-            with:
-              name: grid_detector.bin
-              path: ${{ github.workspace }}/grid_detector.bin
-    compile_flasher:
-        runs-on: ubuntu-latest
-        steps:
-          - uses: actions/checkout@v4
-          - name: Compile Flasher firmware
-            uses: ./.github/workflows/firmware-compile
-            with:
-              project-folder: flasher
-    # run_black:
-    #     runs-on: ubuntu-latest
-    #     steps:
-    #       - uses: actions/checkout@v4
-    #       - name: Run Black in the check mode
-    #         uses: psf/black@stable
-    #         with:
-    #           options: "--check --verbose --line-length 120 --target-version py312 deploy"
-    #           src: ${{ github.workspace }}/deploy
-    #           version: "~= 24.0"
-              
+name: 🏗️ Compile Firmware
+permissions:
+  contents: read
+on:
+  pull_request:
+    types: [ opened, synchronize, reopened ]
+    branches:
+      - master
+  workflow_dispatch:
+jobs:
+  compile_grid_detector:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - name: Compile Grid Detector firmware (all environments)
+        uses: ./.github/workflows/firmware-compile
+        with:
+          project-folder: grid_detector
+      - name: Upload WiFi firmware
+        uses: actions/upload-artifact@v7
+        with:
+          name: grid_detector_wifi.bin
+          path: ${{ github.workspace }}/grid_detector/.pio/build/grid_detector_wifi/firmware.bin
+      - name: Upload Ethernet firmware
+        uses: actions/upload-artifact@v7
+        with:
+          name: grid_detector_eth.bin
+          path: ${{ github.workspace }}/grid_detector/.pio/build/grid_detector_eth/firmware.bin
+
+  compile_flasher:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - name: Compile Flasher firmware
+        uses: ./.github/workflows/firmware-compile
+        with:
+          project-folder: flasher

@@ -1,7 +1,21 @@
-#define ETHERNET 0
-#define WIFI 1
-#define GRID 1
-#define ARDUINO_OTA_ENABLED 1
+#ifndef WIFI
+#  error "WIFI is not defined — use a PlatformIO environment (grid_detector_wifi or grid_detector_eth)"
+#endif
+#ifndef ETHERNET
+#  error "ETHERNET is not defined — use a PlatformIO environment (grid_detector_wifi or grid_detector_eth)"
+#endif
+#if WIFI && ETHERNET
+#  error "Cannot enable both WIFI and ETHERNET simultaneously"
+#endif
+#if !WIFI && !ETHERNET
+#  error "Either WIFI or ETHERNET must be enabled"
+#endif
+#ifndef GRID
+#  error "GRID is not defined"
+#endif
+#ifndef ARDUINO_OTA_ENABLED
+#  error "ARDUINO_OTA_ENABLED is not defined"
+#endif
 
 #include <Preferences.h>
 #include <ArduinoWebsockets.h>
@@ -27,11 +41,28 @@ const PROGMEM char* VERSION = "0.0.4";
 #define ETH_MDIO_PIN    18
 #endif
 
+// GTS Root R4 — root CA for Cloudflare/Google Trust Services (valid until 2036)
+const PROGMEM char* GTS_ROOT_R4 = \
+"-----BEGIN CERTIFICATE-----\n" \
+"MIICCTCCAY6gAwIBAgINAgPlwGjvYxqccpBQUjAKBggqhkjOPQQDAzBHMQswCQYD\n" \
+"VQQGEwJVUzEiMCAGA1UEChMZR29vZ2xlIFRydXN0IFNlcnZpY2VzIExMQzEUMBIG\n" \
+"A1UEAxMLR1RTIFJvb3QgUjQwHhcNMTYwNjIyMDAwMDAwWhcNMzYwNjIyMDAwMDAw\n" \
+"WjBHMQswCQYDVQQGEwJVUzEiMCAGA1UEChMZR29vZ2xlIFRydXN0IFNlcnZpY2Vz\n" \
+"IExMQzEUMBIGA1UEAxMLR1RTIFJvb3QgUjQwdjAQBgcqhkjOPQIBBgUrgQQAIgNi\n" \
+"AATzdHOnaItgrkO4NcWBMHtLSZ37wWHO5t5GvWvVYRg1rkDdc/eJkTBa6zzuhXyi\n" \
+"QHY7qca4R9gq55KRanPpsXI5nymfopjTX15YhmUPoYRlBtHci8nHc8iMai/lxKvR\n" \
+"HYqjQjBAMA4GA1UdDwEB/wQEAwIBhjAPBgNVHRMBAf8EBTADAQH/MB0GA1UdDgQW\n" \
+"BBSATNbrdP9JNqPV2Py1PsVq8JQdjDAKBggqhkjOPQQDAwNpADBmAjEA6ED/g94D\n" \
+"9J+uHXqnLrmvT/aDHQ4thQEd0dlq7A/Cr8deVl5c1RxYIigL9zC2L7F8AjEA8GE8\n" \
+"p/SgguMh1YQdc4acLa/KNJvxn7kjNuK8YAOdgLOaVsjh4rsUecrNIdSUtUlD\n" \
+"-----END CERTIFICATE-----\n";
+
+#include <WiFiClientSecure.h>
 #if WIFI
 #include <WiFiManager.h>
 WiFiManager     wm;
 #endif
-WiFiClient      client;
+WiFiClientSecure  client;
 
 using namespace   websockets;
 WebsocketsClient  client_websocket;
@@ -48,8 +79,8 @@ struct Settings {
   char          broadcastname[31]     = "griddetector";
   int           ws_alert_time         = 150000;
   int           ws_reboot_time        = 300000;
-  char          serverhost[31]        = "alerts.net.ua";
-  int           websocket_port        = 39447;
+  char          serverhost[31]        = "grid.respublika.pp.ua";
+  int           websocket_port        = 443;
   int           reaction_time         = 2000;
   // ------- web config end
 };
@@ -98,6 +129,24 @@ void initSettings() {
   settings.reaction_time    = preferences.getInt("rt", settings.reaction_time);
 
   preferences.end();
+
+  if (strcmp(settings.serverhost, "alerts.net.ua") == 0) {
+    Serial.print("Migrating serverhost to grid.respublika.pp.ua\n");
+    strlcpy(settings.serverhost, "grid.respublika.pp.ua", sizeof(settings.serverhost));
+    preferences.begin("storage", false);
+    preferences.putString("host", settings.serverhost);
+    preferences.end();
+    Serial.print("serverhost migration done\n");
+  }
+
+  if (settings.websocket_port == 39447 || settings.websocket_port == 38440) {
+    Serial.print("Migrating websocket_port to 443\n");
+    settings.websocket_port = 443;
+    preferences.begin("storage", false);
+    preferences.putInt("wsp", settings.websocket_port);
+    preferences.end();
+    Serial.print("websocket_port migration done\n");
+  }
 
   Serial.printf("Node inited: %s\n", settings.identifier);
   Serial.printf("Current firmware version: %s\n", VERSION);
@@ -211,6 +260,12 @@ void initEthernet() {
   connected = true;
 }
 #endif
+
+void initSSL() {
+  client.setCACert(GTS_ROOT_R4);
+  client_websocket.setCACert(GTS_ROOT_R4);
+  Serial.print("SSL client initialized\n");
+}
 
 void initUpdates() {
   Serial.println("Init update");
@@ -400,7 +455,7 @@ void socketConnect() {
   client_websocket.onEvent(onEventsCallback);
   long startTime = millis();
   char webSocketUrl[100];
-  sprintf(webSocketUrl, "ws://%s:%d/grid_detector", settings.serverhost, settings.websocket_port);
+  sprintf(webSocketUrl, "wss://%s:%d/grid_detector", settings.serverhost, settings.websocket_port);
   Serial.printf("Websoket URL: %s\n", webSocketUrl);
   client_websocket.connect(webSocketUrl);
   if (client_websocket.available()) {
@@ -464,6 +519,7 @@ void setup() {
   #if WIFI
   initWifi();
   #endif
+  initSSL();
   initUpdates();
 
   Serial.print("\n-----\nSetup complete\n-----\n\n");

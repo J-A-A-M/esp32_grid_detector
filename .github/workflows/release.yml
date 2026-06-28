@@ -2,58 +2,76 @@ name: 🚀 Release Firmware
 on:
   workflow_dispatch:
     inputs:
-        release-version:
-          description: 'Release version'
-          required: true
-          type: string
+      release-version:
+        description: 'Release version'
+        required: true
+        type: string
 run-name: Release ${{ inputs.release-version }}
 jobs:
   build_wifi:
     if: ${{ github.ref_name == 'master' }}
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
-      - name: Replace version and connection type in firmware source
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - name: Set version in firmware source
+        env:
+          RELEASE_VERSION: ${{ inputs.release-version }}
         run: |
-          sed -i 's/VERSION = ".*";/VERSION = "${{ inputs.release-version }}";/' ${{ github.workspace }}/grid_detector/src/GridDetector.cpp
-          sed -i 's/#define WIFI ./#define WIFI 1/' ${{ github.workspace }}/grid_detector/src/GridDetector.cpp
-          sed -i 's/#define ETHERNET ./#define ETHERNET 0/' ${{ github.workspace }}/grid_detector/src/GridDetector.cpp
-      - name: Compile firmware
+          sed -i "s/VERSION = \".*\";/VERSION = \"${RELEASE_VERSION}\";/" "$GITHUB_WORKSPACE/grid_detector/src/GridDetector.cpp"
+      - name: Compile WiFi firmware
         uses: ./.github/workflows/firmware-compile
         with:
           project-folder: grid_detector
-      - name: Copy bin to upload
+          environment: grid_detector_wifi
+      - name: Rename WiFi firmware
+        env:
+          RELEASE_VERSION: ${{ inputs.release-version }}
         run: |
-          cp -f ${{ github.workspace }}/grid_detector/.pio/build/grid_detector/firmware.bin ${{ github.workspace }}/Grid_Detector_WiFi_${{ inputs.release-version }}.bin
-      - name: Upload firmware
-        uses: actions/upload-artifact@v4
+          cp "$GITHUB_WORKSPACE/grid_detector/.pio/build/grid_detector_wifi/firmware.bin" \
+             "$GITHUB_WORKSPACE/Grid_Detector_WiFi_${RELEASE_VERSION}.bin"
+      - name: Upload WiFi firmware
+        uses: actions/upload-artifact@v7
         with:
           name: Grid_Detector_WiFi_${{ inputs.release-version }}.bin
           path: ${{ github.workspace }}/Grid_Detector_WiFi_${{ inputs.release-version }}.bin
+
   build_ethernet:
     if: ${{ github.ref_name == 'master' }}
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
-      - name: Replace version and connection type in firmware source
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - name: Set version in firmware source
+        env:
+          RELEASE_VERSION: ${{ inputs.release-version }}
         run: |
-          sed -i 's/VERSION = ".*";/VERSION = "${{ inputs.release-version }}";/' ${{ github.workspace }}/grid_detector/src/GridDetector.cpp
-          sed -i 's/#define WIFI ./#define WIFI 0/' ${{ github.workspace }}/grid_detector/src/GridDetector.cpp
-          sed -i 's/#define ETHERNET ./#define ETHERNET 1/' ${{ github.workspace }}/grid_detector/src/GridDetector.cpp
-      - name: Compile firmware
+          sed -i "s/VERSION = \".*\";/VERSION = \"${RELEASE_VERSION}\";/" "$GITHUB_WORKSPACE/grid_detector/src/GridDetector.cpp"
+      - name: Compile Ethernet firmware
         uses: ./.github/workflows/firmware-compile
         with:
           project-folder: grid_detector
-      - name: Copy bin to upload
+          environment: grid_detector_eth
+      - name: Rename Ethernet firmware
+        env:
+          RELEASE_VERSION: ${{ inputs.release-version }}
         run: |
-          cp -f ${{ github.workspace }}/grid_detector/.pio/build/grid_detector/firmware.bin ${{ github.workspace }}/Grid_Detector_ETH_${{ inputs.release-version }}.bin
-      - name: Upload firmware
-        uses: actions/upload-artifact@v4
+          cp "$GITHUB_WORKSPACE/grid_detector/.pio/build/grid_detector_eth/firmware.bin" \
+             "$GITHUB_WORKSPACE/Grid_Detector_ETH_${RELEASE_VERSION}.bin"
+      - name: Upload Ethernet firmware
+        uses: actions/upload-artifact@v7
         with:
           name: Grid_Detector_ETH_${{ inputs.release-version }}.bin
           path: ${{ github.workspace }}/Grid_Detector_ETH_${{ inputs.release-version }}.bin
+
   release_firmware:
     needs: [build_wifi, build_ethernet]
     runs-on: ubuntu-latest
@@ -62,28 +80,31 @@ jobs:
       id-token: write
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
-      - name: Replace version in firmware source
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - name: Set version in firmware source
+        env:
+          RELEASE_VERSION: ${{ inputs.release-version }}
         run: |
-          sed -i 's/VERSION = ".*";/VERSION = "${{ inputs.release-version }}";/' ${{ github.workspace }}/grid_detector/src/GridDetector.cpp
-      - name: Download firmware WiFi
-        uses: actions/download-artifact@v4
+          sed -i "s/VERSION = \".*\";/VERSION = \"${RELEASE_VERSION}\";/" "$GITHUB_WORKSPACE/grid_detector/src/GridDetector.cpp"
+      - name: Download WiFi firmware
+        uses: actions/download-artifact@v8
         with:
           name: Grid_Detector_WiFi_${{ inputs.release-version }}.bin
           path: ${{ github.workspace }}/Grid_Detector_WiFi_${{ inputs.release-version }}.bin
-      - name: Download firmware Ethernet
-        uses: actions/download-artifact@v4
+      - name: Download Ethernet firmware
+        uses: actions/download-artifact@v8
         with:
           name: Grid_Detector_ETH_${{ inputs.release-version }}.bin
           path: ${{ github.workspace }}/Grid_Detector_ETH_${{ inputs.release-version }}.bin
-      - name: Commit changes
+      - name: Commit version bump
         id: commit_changes
-        uses: stefanzweifel/git-auto-commit-action@v5
+        uses: stefanzweifel/git-auto-commit-action@v7
         with:
           commit_message: "Release ${{ inputs.release-version }}"
           file_pattern: ${{ github.workspace }}/grid_detector/src/GridDetector.cpp
       - name: Create Release
-        id: create_release
         uses: ncipollo/release-action@v1
         with:
           artifacts: "${{ github.workspace }}/Grid_Detector_WiFi_${{ inputs.release-version }}.bin/Grid_Detector_WiFi_${{ inputs.release-version }}.bin,${{ github.workspace }}/Grid_Detector_ETH_${{ inputs.release-version }}.bin/Grid_Detector_ETH_${{ inputs.release-version }}.bin"
@@ -100,4 +121,3 @@ jobs:
           firmware-eth-url: "https://github.com/J-A-A-M/esp32_grid_detector/releases/download/${{ inputs.release-version }}/Grid_Detector_ETH_${{ inputs.release-version }}.bin"
           firmware-version: ${{ inputs.release-version }}
           web-server-url: ${{ secrets.UPDATE_FIRMWARE_URL }}
-
