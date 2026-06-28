@@ -82,7 +82,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v7
         with:
-          persist-credentials: false
+          persist-credentials: true
       - name: Set version in firmware source
         env:
           RELEASE_VERSION: ${{ inputs.release-version }}
